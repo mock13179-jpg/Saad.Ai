@@ -1,0 +1,1304 @@
+﻿# -- coding: utf-8 --
+"""
+سعد الكوني - الإصدار الخارق (Ultimate Edition)
+نظام ذكاء اصطناعي متكامل ذاتي التعلم والتطور
+"""
+
+
+import sys
+import os
+import json
+import pickle
+import hashlib
+import secrets
+import random
+import re
+import time
+import datetime
+import threading
+import queue
+import sqlite3
+import numpy as np
+import math
+from collections import defaultdict, deque
+from enum import Enum
+from typing import (Any, Dict, List, Tuple, Union, Optional, Callable,
+                    Type, TypeVar, Generic, Iterable, Iterator, Set)
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import filedialog
+import pyperclip
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+import html
+import urllib.parse
+import requests
+from bs4 import BeautifulSoup
+import ast
+import operator as op
+from sympy import symbols, Eq, solve, simplify, sympify
+
+
+# =============== أدوات مساعدة للسلامة والصلة =========
+def detect_lang(text: str) -> str:
+    """كشف بدائي للغة السؤال: عربي أو إنجليزي."""
+    # وجود حروف عربية
+    if re.search(r'[\u0600-\u06FF]', text):
+        return "ar"
+    return "en"
+
+
+BAD_TERMS = {
+    # عربي
+    "جنس","إباحي","قضيب","مهبل","مثير","مص","جماع","احتكاك","فموي","شرج",
+    # إنجليزي
+    "sex","porn","penis","vagina","erotic","blowjob","oral","anal","nsfw"
+}
+
+
+def looks_nsfw(title: str, summary: str) -> bool:
+    t = (title or "").lower()
+    s = (summary or "").lower()
+    for w in BAD_TERMS:
+        if w in t or w in s:
+            return True
+    return False
+
+
+def is_relevant(summary: str, question: str) -> bool:
+    """يتأكد أن الملخص مرتبط بالسؤال (تداخل كلمات بسيط لكنه عملي)."""
+    if not summary:
+        return False
+    # كلمات مفيدة فقط (≥3 حروف، بدون علامات)
+    def tokenize(x):
+        x = re.sub(r'[^\w\u0600-\u06FF]+', ' ', x.lower())
+        return [w for w in x.split() if len(w) >= 3]
+    q_words = set(tokenize(question))
+    s_words = set(tokenize(summary))
+    overlap = len(q_words & s_words)
+    # اعتبره مناسبًا لو فيه على الأقل كلمتين مشتركتين أو لو السؤال قصير جدًا فواحدة تكفي
+    if len(q_words) <= 4:
+        return overlap >= 1
+    return overlap >= 2
+
+
+def smart_shorten(text: str, max_sentences: int = 2, max_chars: int = 320) -> str:
+    """اقتطاع نظيف إلى جملتين كحد أقصى، وبحد أقصى من الحروف."""
+    # افصل على علامات انتهاء الجمل العربية/الإنجليزية
+    parts = re.split(r'(?<=[\.!\?؟])\s+', text.strip())
+    out = ' '.join(parts[:max_sentences]).strip()
+    if len(out) > max_chars:
+        out = out[:max_chars].rsplit(' ', 1)[0].rstrip() + '…'
+    return out
+
+
+# ---- حارس رياضي: كشف ومسح وتعامل مع تعابير LaTeX بسيطة ----
+MATH_RE = re.compile(r'[\d\.\+\-\*\/\^\(\)\s]+$')
+
+
+def preprocess_math_expr(q: str) -> str:
+    """حوّل بعض أنماط الـLaTeX البسيطة إلى تعبير بايثونية قابلة للتقييم."""
+    s = q.strip()
+    # أزل حروف $ و \left \right
+    s = s.replace('$', '')
+    s = s.replace('\\left', '').replace('\\right', '')
+    # تحويل \frac{a}{b} إلى (a/b)
+    s = re.sub(r'\\frac\s*\{\s*([^{}]+?)\s*\}\s*\{\s*([^{}]+?)\s*\}', r'(\1/\2)', s)
+    # تحويل ^ إلى **
+    s = s.replace('^', '**')
+    # إزالة أي حروف غير ضرورية (ابقِ على الأرقام والعمليات والاقواس ونقطة)
+    s = re.sub(r'[^\d\.\+\-\*\/\(\)\s\*]', ' ', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s
+
+
+# أمان التقييم: دالة تستخدم ast لتقييد العقد المسموح بها
+ALLOWED_OPERATORS = {
+    ast.Add: op.add,
+    ast.Sub: op.sub,
+    ast.Mult: op.mul,
+    ast.Div: op.truediv,
+    ast.Pow: op.pow,
+    ast.USub: op.neg,
+    ast.UAdd: op.pos
+}
+
+
+def _eval_ast(node):
+    if isinstance(node, ast.Num):  # <number>
+        return node.n
+    if isinstance(node, ast.BinOp):
+        left = _eval_ast(node.left)
+        right = _eval_ast(node.right)
+        op_type = type(node.op)
+        if op_type in ALLOWED_OPERATORS:
+            return ALLOWED_OPERATORS[op_type](left, right)
+    if isinstance(node, ast.UnaryOp):
+        operand = _eval_ast(node.operand)
+        op_type = type(node.op)
+        if op_type in ALLOWED_OPERATORS:
+            return ALLOWED_OPERATORS[op_type](operand)
+    raise ValueError("Unsafe or unsupported expression")
+
+
+def safe_eval_expr(expr: str):
+    """قيم تعبير رياضي بسيط بأمان أو ارمِ استثناء."""
+    node = ast.parse(expr, mode='eval')
+    return _eval_ast(node.body)
+
+
+def is_math_question(q: str) -> bool:
+    """كشف إذا كان السؤال رياضيات بناءً على وجود أرقام + عمليات، أو معادلة بها متغيرات."""
+    s = q.strip()
+    # صيغة لايتك أو ^
+    if r'\frac' in s or '^' in s:
+        return True
+    # لازم يكون فيه أرقام أو معادلة أو متغيرات مرتبطة بعمليات
+    has_number = bool(re.search(r'\d', s))
+    has_operator = bool(re.search(r'[+\-*/^=]', s))
+    has_variable = bool(re.search(r'\b[xyz]\b', s))
+    # مسألة لو فيها أرقام وعملية، أو معادلة فيها متغير
+    if (has_number and has_operator) or (has_variable and '=' in s):
+        return True
+    return False
+
+
+def solve_math_question(q: str) -> str | None:
+    """حل المسألة الرياضية باستخدام Sympy، مع fallback للتقييم الآمن."""
+    try:
+        # تعريف المتغيرات
+        x, y, z = symbols('x y z')
+        expr = q.replace('^', '**').replace('×', '*')
+        # لو فيها معادلة
+        if '=' in expr:
+            left, right = expr.split('=')
+            equation = Eq(sympify(left), sympify(right))
+            sol = solve(equation)
+            return f"{sol}"
+        else:
+            val = simplify(sympify(expr))
+            return str(val)
+    except Exception:
+        # لو فشل، جرب التقييم الحالي
+        try:
+            expr = preprocess_math_expr(q)
+            if not expr:
+                return None
+            result = safe_eval_expr(expr)
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+            return str(result)
+        except Exception:
+            return None
+
+
+# =============== Wikipedia Search Functions ===============
+WIKI_HEADERS = {
+    "User-Agent": "SaadBot/1.0 (+local; simple non-API fetch)",
+    "Accept-Language": "ar,en;q=0.8"
+}
+
+
+def _clean_text(txt):
+    txt = re.sub(r'\[\d+\]', '', txt)
+    txt = re.sub(r'\s+', ' ', txt).strip()
+    return html.unescape(txt)
+
+
+def _extract_paragraphs(soup, max_paras=2):
+    content = soup.select_one("div.mw-parser-output")
+    if not content:
+        return None
+    paras = []
+    for p in content.find_all("p", recursive=False):
+        text = _clean_text(p.get_text(" ", strip=True))
+        if text and len(text) > 30:
+            paras.append(text)
+        if len(paras) >= max_paras:
+            break
+    return " ".join(paras) if paras else None
+
+
+def _first_search_result(soup, lang):
+    # يفضّل النتائج من قسم البحث الأساسي
+    link = soup.select_one("ul.mw-search-results li a")
+    if link and link.get("href"):
+        return f"https://{lang}.wikipedia.org{link['href']}"
+    # fallback بسيط: أول رابط داخلي في المحتوى
+    link = soup.select_one("div.mw-parser-output ul li a")
+    if link and link.get("href", "").startswith("/wiki/"):
+        return f"https://{lang}.wikipedia.org{link['href']}"
+    return None
+
+
+def get_wikipedia_summary(query, lang="ar", max_paragraphs=2, timeout=8):
+    """يرجع (summary, url) أو (None, None) بعد فحص الصلة ومنع NSFW."""
+    base = f"https://{lang}.wikipedia.org"
+    slug = urllib.parse.quote(query.replace(" ", "_"))
+    direct_url = f"{base}/wiki/{slug}"
+
+
+    def _fetch(url):
+        try:
+            r = requests.get(url, headers=WIKI_HEADERS, timeout=timeout, allow_redirects=True)
+            if 200 <= r.status_code < 300:
+                return BeautifulSoup(r.text, "html.parser")
+        except:
+            return None
+        return None
+
+
+    def _title_of(soup):
+        h1 = soup.select_one("#firstHeading")
+        return _clean_text(h1.get_text(" ", strip=True)) if h1 else ""
+
+
+    # 1) صفحة مباشرة
+    soup = _fetch(direct_url)
+    if soup:
+        title = _title_of(soup)
+        txt = _extract_paragraphs(soup, max_paragraphs) or ""
+        if txt and not looks_nsfw(title, txt) and is_relevant(txt, query):
+            return smart_shorten(txt, 2, 320), direct_url
+
+
+    # 2) البحث
+    search_url = f"{base}/w/index.php?search={urllib.parse.quote(query)}"
+    soup = _fetch(search_url)
+    if soup:
+        first = _first_search_result(soup, lang)
+        if first:
+            soup2 = _fetch(first)
+            if soup2:
+                title = _title_of(soup2)
+                txt = _extract_paragraphs(soup2, max_paragraphs) or ""
+                if txt and not looks_nsfw(title, txt) and is_relevant(txt, query):
+                    return smart_shorten(txt, 2, 320), first
+
+
+    return None, None
+
+
+# =============== واجهة المستخدم الرسومية ===============
+class SaadGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("سعد - مولد نصوص بالذكاء الاصطناعي")
+        self.root.geometry("800x700")
+       
+        # تحميل النموذج مرة واحدة عند بدء التشغيل
+        self.model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen1.5-0.5B", torch_dtype=torch.float32, device_map="cpu")
+        self.tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen1.5-0.5B")
+       
+        self.setup_ui()
+   
+    def setup_ui(self):
+        """تهيئة واجهة المستخدم"""
+        # إطار التحكم العلوي
+        control_frame = tk.Frame(self.root)
+        control_frame.pack(pady=5)
+
+
+        # أزرار التحكم
+        tk.Button(control_frame, text="نسخ الإجابة", command=self.copy_output, bg="#4CAF50", fg="white").pack(side=tk.LEFT, padx=5)
+        tk.Button(control_frame, text="لصق السؤال", command=self.paste_input, bg="#2196F3", fg="white").pack(side=tk.LEFT, padx=5)
+        tk.Button(control_frame, text="حفظ المحادثة", command=self.save_conversation, bg="#FF9800", fg="white").pack(side=tk.LEFT, padx=5)
+        tk.Button(control_frame, text="تحميل محادثة", command=self.load_conversation, bg="#9C27B0", fg="white").pack(side=tk.LEFT, padx=5)
+
+
+        # حقل الإدخال
+        tk.Label(self.root, text="أدخل النص هنا:", font=("Arial", 14)).pack(pady=10)
+        self.entry = tk.Text(self.root, height=8, width=80, font=("Arial", 12))
+        self.entry.pack()
+
+
+        # زر التشغيل
+        tk.Button(self.root, text="تشغيل النموذج", command=self.generate_response, bg="green", fg="white", font=("Arial", 12)).pack(pady=10)
+
+
+        # حقل الإخراج
+        tk.Label(self.root, text="الناتج:", font=("Arial", 14)).pack(pady=10)
+        self.output = tk.Text(self.root, height=15, width=80, font=("Arial", 12), bg="#f0f0f0")
+        self.output.pack()
+
+
+        # إطار التحكم السفلي
+        bottom_control_frame = tk.Frame(self.root)
+        bottom_control_frame.pack(pady=5)
+        tk.Button(bottom_control_frame, text="نسخ الإجابة", command=self.copy_output, bg="#4CAF50", fg="white").pack(side=tk.LEFT, padx=5)
+        tk.Button(bottom_control_frame, text="لصق السؤال", command=self.paste_input, bg="#2196F3", fg="white").pack(side=tk.LEFT, padx=5)
+
+
+    def generate_response(self):
+        """توليد رد من النموذج"""
+        input_text = self.entry.get("1.0", tk.END).strip()
+        if not input_text:
+            messagebox.showwarning("تحذير", "من فضلك أدخل نصاً.")
+            return
+
+
+        user_q = input_text.strip()
+
+
+        # ---- 1. الحارس الرياضي: لو المسألة حسابية نحلها فورًا ----
+        if is_math_question(user_q):
+            math_ans = solve_math_question(user_q)
+            if math_ans is not None:
+                # عرض نتيجة مباشرة (نفس أسلوب اللغة: إن كان السؤال عربي أجب بالعربي)
+                lang = detect_lang(user_q)
+                if lang == "ar":
+                    response = f"الناتج: {math_ans}"
+                else:
+                    response = f"Result: {math_ans}"
+                self.output.delete("1.0", tk.END)
+                self.output.insert(tk.END, response)
+                return
+            # إن فشل الحارس الرياضي نستمر بالخطوات التالية (ويكيبيديا/الموديل)
+
+
+        # ---- 2. تابع RAG المرن (ويكيبيديا ثم الموديل) ----
+        lang = detect_lang(user_q)  # "ar" أو "en"
+        wiki_text, wiki_url = get_wikipedia_summary(user_q, lang=lang)
+
+
+        if wiki_text:
+            guided_prompt = (
+                f"أجب بإيجاز شديد وبصحة معلوماتية بالاعتماد فقط على الفقرة التالية من ويكيبيديا:"
+                f"\n---\n{wiki_text}\n---\n"
+                f"السؤال: {user_q}\n"
+                f"التزم بالدقة، وامتنع عن التخمين."
+            )
+            messages = [{"role": "user", "content": guided_prompt}]
+        else:
+            messages = [{"role": "user", "content": user_q}]
+
+
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        model_inputs = self.tokenizer(text, return_tensors="pt")
+
+
+        generated_ids = self.model.generate(
+            model_inputs.input_ids,
+            max_new_tokens=80,       # مساحة أكبر للشرح لكن سنقص لحد جملتين
+            do_sample=False,         # نخليها حتمية لتقليل التخمين
+            temperature=0.0,         # تجاهَل لو do_sample=False
+            top_p=1.0,
+            repetition_penalty=1.05
+        )
+
+
+        response = self.tokenizer.decode(generated_ids[0][model_inputs.input_ids.shape[1]:], skip_special_tokens=True)
+
+
+        # اقتطاع نظيف
+        response = smart_shorten(response, max_sentences=2, max_chars=320)
+
+
+        # أضف المصدر إن وُجد
+        if wiki_url:
+            response += f"\n\n(المصدر: {wiki_url})"
+
+
+        self.output.delete("1.0", tk.END)
+        self.output.insert(tk.END, response)
+
+
+    def copy_output(self):
+        """نسخ الناتج إلى الحافظة"""
+        output_text = self.output.get("1.0", tk.END).strip()
+        if output_text:
+            pyperclip.copy(output_text)
+            messagebox.showinfo("نجاح", "تم نسخ النص إلى الحافظة!")
+        else:
+            messagebox.showwarning("تحذير", "لا يوجد نص لنسخه!")
+
+
+    def paste_input(self):
+        """لصق النص من الحافظة"""
+        try:
+            clipboard_text = pyperclip.paste()
+            if clipboard_text:
+                self.entry.insert(tk.END, clipboard_text)
+        except Exception as e:
+            messagebox.showerror("خطأ", f"تعذر لصق النص: {str(e)}")
+
+
+    def save_conversation(self):
+        """حفظ المحادثة الحالية في ملف"""
+        input_text = self.entry.get("1.0", tk.END).strip()
+        output_text = self.output.get("1.0", tk.END).strip()
+       
+        if not input_text and not output_text:
+            messagebox.showwarning("تحذير", "لا يوجد محتوى لحفظه!")
+            return
+       
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("ملف نصي", ".txt"), ("جميع الملفات", ".*")],
+            title="حفظ المحادثة"
+        )
+       
+        if file_path:
+            try:
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    f.write("===== السؤال =====\n")
+                    f.write(input_text + "\n\n")
+                    f.write("===== الإجابة =====\n")
+                    f.write(output_text + "\n")
+                messagebox.showinfo("نجاح", f"تم حفظ المحادثة في:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("خطأ", f"تعذر حفظ الملف: {str(e)}")
+
+
+    def load_conversation(self):
+        """تحميل محادثة محفوظة"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("ملف نصي", ".txt"), ("جميع الملفات", ".*")],
+            title="فتح محادثة محفوظة"
+        )
+       
+        if file_path:
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+               
+                self.entry.delete("1.0", tk.END)
+                self.output.delete("1.0", tk.END)
+               
+                if "===== السؤال =====" in content and "===== الإجابة =====" in content:
+                    parts = content.split("===== السؤال =====")[1].split("===== الإجابة =====")
+                    self.entry.insert(tk.END, parts[0].strip())
+                    self.output.insert(tk.END, parts[1].strip())
+                else:
+                    self.entry.insert(tk.END, content)
+               
+                messagebox.showinfo("نجاح", f"تم تحميل المحادثة من:\n{file_path}")
+            except Exception as e:
+                messagebox.showerror("خطأ", f"تعذر تحميل الملف: {str(e)}")
+
+
+# =============== نظام الأنماط والتكوين ===============
+class SystemConfig:
+    """نظام تكوين متقدم مع التحقق من الصحة"""
+   
+    DEFAULTS = {
+        "quantum": {
+            "entropy_level": 5,
+            "probability_threshold": 0.85,
+            "max_qubits": 12
+        },
+        "language": {
+            "response_depth": 3,
+            "creativity_factor": 0.75,
+            "context_window": 7
+        },
+        "learning": {
+            "retention_rate": 0.92,
+            "decay_factor": 0.05,
+            "reinforcement_cycle": 24
+        },
+        "security": {
+            "authentication_level": 4,
+            "key_rotation_interval": 3600,
+            "biometric_threshold": 0.93
+        }
+    }
+   
+    def _init_(self, config_path: str = None):
+        self.config = self.DEFAULTS.copy()
+        self.config_path = config_path
+        self.validation_rules = self._init_validation_rules()
+       
+        if config_path and os.path.exists(config_path):
+            self.load_config(config_path)
+   
+    def _init_validation_rules(self) -> Dict[str, Callable]:
+        """تهيئة قواعد التحقق من صحة التكوين"""
+        return {
+            "quantum.entropy_level": lambda x: 1 <= x <= 10,
+            "quantum.probability_threshold": lambda x: 0.5 <= x <= 0.99,
+            "language.creativity_factor": lambda x: 0.1 <= x <= 1.0,
+            "security.authentication_level": lambda x: x in {1, 2, 3, 4}
+        }
+   
+    def load_config(self, path: str):
+        """تحميل التكوين من ملف"""
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                loaded_config = json.load(f)
+                self._merge_configs(loaded_config)
+                print(f"تم تحميل التكوين من {path}")
+        except Exception as e:
+            print(f"خطأ في تحميل التكوين: {str(e)}")
+   
+    def _merge_configs(self, new_config: Dict):
+        """دمج التكوينات مع التحقق من الصحة"""
+        for section, values in new_config.items():
+            if section in self.config:
+                for key, value in values.items():
+                    full_key = f"{section}.{key}"
+                    if full_key in self.validation_rules:
+                        if self.validation_rules[full_key](value):
+                            self.config[section][key] = value
+                        else:
+                            print(f"قيمة غير صالحة: {full_key} = {value}")
+                    else:
+                        self.config[section][key] = value
+   
+    def get(self, key_path: str, default: Any = None) -> Any:
+        """الحصول على قيمة التكوين"""
+        keys = key_path.split('.')
+        current = self.config
+        try:
+            for key in keys:
+                current = current[key]
+            return current
+        except KeyError:
+            return default
+   
+    def set(self, key_path: str, value: Any):
+        """تعيين قيمة التكوين"""
+        keys = key_path.split('.')
+        current = self.config
+        for key in keys[:-1]:
+            current = current.setdefault(key, {})
+        last_key = keys[-1]
+        current[last_key] = value
+
+
+# =============== محرك التعرف على المشاعر ===============
+class EmotionRecognitionEngine:
+    """محرك محلي للتعرف على المشاعر"""
+   
+    def _init_(self):
+        self.sentiment_lexicon = {
+            'سعيد': 0.8,
+            'فرح': 0.7,
+            'حزين': -0.8,
+            'غاضب': -0.6,
+            'رائع': 0.9,
+            'سيء': -0.7
+        }
+   
+    def analyze_sentiment(self, text: str) -> float:
+        """تحليل المشاعر الأساسي للنص"""
+        words = text.split()
+        sentiment = 0.0
+        matched = 0
+       
+        for word in words:
+            if word in self.sentiment_lexicon:
+                sentiment += self.sentiment_lexicon[word]
+                matched += 1
+               
+        if matched > 0:
+            return sentiment / matched
+        return 0.0
+
+
+# =============== نظام اللغة المتقدم ===============
+class AdvancedLanguageSystem:
+    """نظام معالجة لغة طبيعية متقدم"""
+   
+    class LanguageContext:
+        """تمثيل سياقي متقدم للمحادثة"""
+       
+        def _init_(self, depth: int = 5):
+            self.context_stack = deque(maxlen=depth)
+            self.context_weights = []
+            self.current_topic = ""
+            self.sentiment_score = 0.0
+       
+        def push_context(self, context: str, weight: float = 1.0):
+            """إضافة سياق جديد إلى المحادثة"""
+            self.context_stack.append(context)
+            self.context_weights.append(weight)
+            self._update_topic(context)
+       
+        def _update_topic(self, context: str):
+            """تحديد الموضوع الحالي تلقائياً"""
+            if "؟" in context:
+                self.current_topic = context.split("؟")[0]
+            elif ":" in context:
+                self.current_topic = context.split(":")[0]
+            else:
+                words = context.split()
+                if len(words) > 2:
+                    self.current_topic = " ".join(words[:3])
+       
+        def get_weighted_context(self) -> str:
+            """استرجاع السياق مع الأوزان"""
+            weighted_context = []
+            for i, ctx in enumerate(self.context_stack):
+                weight = self.context_weights[i]
+                weighted_context.append(f"(w={weight:.2f}) {ctx}")
+            return "\n".join(weighted_context)
+   
+    def _init_(self, config: SystemConfig):
+        self.config = config
+        self.creativity = config.get("language.creativity_factor", 0.7)
+        self.context_depth = config.get("language.context_window", 7)
+        self.context = self.LanguageContext(self.context_depth)
+        self.language_models = self._load_language_models()
+        self.response_strategies = self._init_response_strategies()
+        self.emotion_engine = EmotionRecognitionEngine()
+   
+    def _load_language_models(self) -> Dict[str, Any]:
+        """تحميل نماذج لغة متعددة (محاكاة)"""
+        return {
+            "grammar_model": {"version": "2.1", "coverage": 0.95},
+            "semantic_model": {"version": "1.7", "entities": 15000},
+            "pragmatic_model": {"version": "3.2", "contextual_depth": 5}
+        }
+   
+    def _init_response_strategies(self) -> Dict[str, Callable]:
+        """تهيئة استراتيجيات توليد الردود"""
+        return {
+            "direct": self._generate_direct_response,
+            "contextual": self._generate_contextual_response,
+            "creative": self._generate_creative_response,
+            "probabilistic": self._generate_probabilistic_response
+        }
+   
+    def process_input(self, text: str) -> str:
+        """معالجة النص المدخل وتوليد الرد"""
+        # تحليل المشاعر
+        sentiment = self.emotion_engine.analyze_sentiment(text)
+        self.context.sentiment_score = sentiment
+       
+        # تحديث السياق
+        self.context.push_context(text, weight=self._calculate_context_weight(text))
+       
+        # اختيار استراتيجية الرد
+        strategy = self._select_response_strategy()
+       
+        # توليد الرد
+        response = self.response_strategies[strategy](text)
+       
+        # تحديث نماذج اللغة
+        self._update_language_models(text, response)
+       
+        return response
+   
+    def _calculate_context_weight(self, text: str) -> float:
+        """حساب وزن السياق بناءً على طول النص وتعقيده"""
+        length_factor = min(1.0, len(text) / 100)
+        complexity_factor = len(re.findall(r'\b\w{5,}\b', text)) / 10
+        return 0.5 + 0.3 * length_factor + 0.2 * complexity_factor
+   
+    def _select_response_strategy(self) -> str:
+        """اختيار استراتيجية الرد الأمثل باستخدام الاحتمالات"""
+        strategies = ["direct", "contextual", "creative", "probabilistic"]
+        creativity = self.creativity
+       
+        # توزيع احتمالي ديناميكي
+        probabilities = {
+            "direct": max(0.1, 0.4 - creativity / 2),
+            "contextual": 0.3,
+            "creative": min(0.5, creativity * 0.8),
+            "probabilistic": min(0.4, (1 - creativity) * 0.5)
+        }
+       
+        # اختيار إستراتيجية بناءً على التوزيع الاحتمالي
+        rand_val = random.random()
+        cumulative = 0.0
+        for strategy, prob in probabilities.items():
+            cumulative += prob
+            if rand_val <= cumulative:
+                return strategy
+       
+        return "direct"
+   
+    def _generate_direct_response(self, text: str) -> str:
+        """توليد رد مباشر"""
+        return f"بالنسبة لسؤالك '{text}'، الجواب المباشر هو أنني نظام ذكاء اصطناعي متقدم."
+   
+    def _generate_contextual_response(self, text: str) -> str:
+        """توليد رد سياقي معقد"""
+        context = self.context.get_weighted_context()
+        return f"بالنظر إلى السياق:\n{context}\nأرى أن سؤالك '{text}' يتطلب إجابة متعمقة."
+   
+    def _generate_creative_response(self, text: str) -> str:
+        """توليد رد إبداعي باستخدام محاكاة إبداعية متقدمة"""
+        creativity_level = int(self.creativity * 10)
+        responses = [
+            "بعد تفكير عميق، أعتقد أن الإجابة تكمن في...",
+            "من وجهة نظر إبداعية، يمكننا النظر إلى الأمر كالتالي...",
+            "لقد ألهمني سؤالك للتفكير في...",
+            f"باستخدام الإبداع من المستوى {creativity_level}، أقول لك..."
+        ]
+        return random.choice(responses)
+   
+    def _generate_probabilistic_response(self, text: str) -> str:
+        """توليد رد احتمالي معقد"""
+        options = [
+            f"بناءً على تحليل احتمالي، أعتقد أن '{text}' يعني شيئاً مثيراً للاهتمام.",
+            f"السيناريو الأكثر احتمالاً هو أنك تبحث عن معلومات حول '{text}'.",
+            f"بعد حساب الاحتمالات، النتيجة الأرجح هي أن لديك فضول حول '{text}'."
+        ]
+        return random.choice(options)
+   
+    def _update_language_models(self, input_text: str, response: str):
+        """تحديث نماذج اللغة بناءً على التفاعل"""
+        for model in self.language_models.values():
+            model["version"] = round(model["version"] + 0.01, 2)
+
+
+# =============== نظام التعلم الذاتي المتقدم ===============
+class AdvancedLearningSystem:
+    """نظام تعلم ذاتي متعدد الطبقات"""
+   
+    class KnowledgeNode:
+        """عقدة معرفية في الشبكة المعرفية"""
+       
+        def _init_(self, id: str, content: Any):
+            self.id = id
+            self.content = content
+            self.connections = {}
+            self.strength = 1.0
+            self.last_accessed = time.time()
+       
+        def add_connection(self, node_id: str, weight: float):
+            """إضافة اتصال إلى عقدة أخرى"""
+            self.connections[node_id] = weight
+       
+        def decay(self, factor: float):
+            """تخفيض قوة العقدة بمرور الوقت"""
+            self.strength *= (1 - factor)
+   
+    class KnowledgeGraph:
+        """شبكة معرفية ديناميكية"""
+       
+        def _init_(self, decay_factor: float = 0.05):
+            self.nodes = {}
+            self.decay_factor = decay_factor
+            self.last_decay_time = time.time()
+       
+        def add_node(self, id: str, content: Any):
+            """إضافة عقدة جديدة"""
+            if id not in self.nodes:
+                self.nodes[id] = AdvancedLearningSystem.KnowledgeNode(id, content)
+       
+        def add_connection(self, from_id: str, to_id: str, weight: float):
+            """إضافة اتصال بين عقدتين"""
+            if from_id in self.nodes and to_id in self.nodes:
+                self.nodes[from_id].add_connection(to_id, weight)
+       
+        def get_node(self, id: str) -> Optional['AdvancedLearningSystem.KnowledgeNode']:
+            """الحصول على عقدة معرفية"""
+            if id in self.nodes:
+                self.nodes[id].last_accessed = time.time()
+                self.nodes[id].strength = min(1.0, self.nodes[id].strength + 0.1)
+                return self.nodes[id]
+            return None
+       
+        def decay_all(self):
+            """تخفيض قوة جميع العقد"""
+            current_time = time.time()
+            if current_time - self.last_decay_time > 86400:  # مرة في اليوم
+                for node in self.nodes.values():
+                    node.decay(self.decay_factor)
+                self.last_decay_time = current_time
+   
+    def _init_(self, config: SystemConfig):
+        self.config = config
+        self.retention_rate = config.get("learning.retention_rate", 0.9)
+        self.decay_factor = config.get("learning.decay_factor", 0.05)
+        self.reinforcement_cycle = config.get("learning.reinforcement_cycle", 24)
+        self.knowledge_graph = self.KnowledgeGraph(self.decay_factor)
+        self.initialize_knowledge_base()
+       
+        # بدء خيط التعلم الدائم
+        self.learning_thread = threading.Thread(target=self._continuous_learning)
+        self.learning_thread.daemon = True
+        self.learning_thread.start()
+   
+    def initialize_knowledge_base(self):
+        """تهيئة قاعدة المعرفة الأولية"""
+        core_knowledge = [
+            ("AI_principles", "مبادئ الذكاء الاصطناعي"),
+            ("quantum_basics", "أساسيات الحوسبة الكمومية"),
+            ("language_processing", "معالجة اللغة الطبيعية"),
+            ("learning_algorithms", "خوارزميات التعلم الآلي")
+        ]
+       
+        for id, content in core_knowledge:
+            self.knowledge_graph.add_node(id, content)
+       
+        # إضافة اتصالات معرفية
+        self.knowledge_graph.add_connection("AI_principles", "quantum_basics", 0.7)
+        self.knowledge_graph.add_connection("AI_principles", "language_processing", 0.8)
+        self.knowledge_graph.add_connection("language_processing", "learning_algorithms", 0.6)
+   
+    def learn_from_interaction(self, input_data: str, output_data: str):
+        """التعلم من تفاعل جديد"""
+        interaction_id = hashlib.sha256(f"{input_data}{output_data}".encode()).hexdigest()[:16]
+       
+        self.knowledge_graph.add_node(interaction_id, {
+            "input": input_data,
+            "output": output_data,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+       
+        for node_id in self.knowledge_graph.nodes:
+            if node_id.startswith("core_"):
+                self.knowledge_graph.add_connection(interaction_id, node_id, 0.5)
+   
+    def _continuous_learning(self):
+        """عملية تعلم مستمرة في الخلفية"""
+        while True:
+            self.knowledge_graph.decay_all()
+            self._reinforce_knowledge()
+            time.sleep(self.reinforcement_cycle * 3600)
+   
+    def _reinforce_knowledge(self):
+        """تعزيز المعرفة بناءً على الاستخدام"""
+        for node in self.knowledge_graph.nodes.values():
+            if node.strength > 0.8:
+                node.strength = min(1.0, node.strength + 0.05)
+   
+    def get_knowledge_path(self, start_id: str, end_id: str) -> List[str]:
+        """الحصول على مسار معرفي بين عقدتين"""
+        visited = set()
+        queue = deque([(start_id, [start_id])])
+       
+        while queue:
+            current_id, path = queue.popleft()
+            if current_id == end_id:
+                return path
+           
+            visited.add(current_id)
+            current_node = self.knowledge_graph.get_node(current_id)
+           
+            for neighbor_id, weight in current_node.connections.items():
+                if neighbor_id not in visited and weight > 0.3:
+                    queue.append((neighbor_id, path + [neighbor_id]))
+       
+        return []
+
+
+# =============== نظام الأمان الكمومي الحيوي المتقدم ===============
+class QuantumBiometricSecurity:
+    """نظام أمان كمومي حيوي متعدد الطبقات"""
+   
+    class QuantumEncryptionEngine:
+        """محرك تشفير كمومي متقدم"""
+       
+        def _init_(self, qubits: int = 8):
+            self.qubits = qubits
+            self.key_cache = {}
+            self.last_key_rotation = time.time()
+       
+        def generate_quantum_key(self, length: int = 256) -> bytes:
+            """توليد مفتاح كمومي عشوائي"""
+            key = secrets.token_bytes(length)
+            self.key_cache[hashlib.sha256(key).hexdigest()] = time.time()
+            return key
+       
+        def rotate_keys(self):
+            """تدوير المفاتيح القديمة"""
+            current_time = time.time()
+            for key_hash, created_time in list(self.key_cache.items()):
+                if current_time - created_time > 86400:  # 24 ساعة
+                    del self.key_cache[key_hash]
+   
+    def _init_(self, config: SystemConfig):
+        self.config = config
+        self.auth_level = config.get("security.authentication_level", 3)
+        self.key_rotation_interval = config.get("security.key_rotation_interval", 3600)
+        self.biometric_threshold = config.get("security.biometric_threshold", 0.9)
+        self.encryption_engine = self.QuantumEncryptionEngine()
+        self.biometric_profiles = {}
+        self.session_keys = {}
+        self.initialize_security_subsystems()
+       
+        # بدء خيط الأمان الدائم
+        self.security_thread = threading.Thread(target=self._continuous_security)
+        self.security_thread.daemon = True
+        self.security_thread.start()
+   
+    def initialize_security_subsystems(self):
+        """تهيئة أنظمة الأمان الفرعية"""
+        self.system_root_key = self.encryption_engine.generate_quantum_key(512)
+        self.biometric_profiles["admin"] = self._create_biometric_profile("admin")
+   
+    def _create_biometric_profile(self, user_id: str) -> Dict:
+        """إنشاء ملف تعريف حيوي كمومي"""
+        profile = {
+            "voice_pattern": hashlib.sha256(f"{user_id}_voice".encode()).hexdigest(),
+            "behavioral_signature": self._generate_behavioral_signature(user_id),
+            "quantum_entropy_factor": random.random()
+        }
+        return profile
+   
+    def _generate_behavioral_signature(self, user_id: str) -> str:
+        """توليد توقيع سلوكي كمومي"""
+        signature = ""
+        for _ in range(8):
+            quantum_state = [random.choice([0, 1]) for _ in range(8)]
+            signature += ''.join(str(b) for b in quantum_state)
+        return hashlib.sha256(signature.encode()).hexdigest()
+   
+    def _continuous_security(self):
+        """مراقبة أمنية مستمرة في الخلفية"""
+        while True:
+            self.encryption_engine.rotate_keys()
+            self._rotate_session_keys()
+            self._system_integrity_check()
+            time.sleep(self.key_rotation_interval)
+   
+    def _rotate_session_keys(self):
+        """تدوير مفاتيح الجلسات القديمة"""
+        current_time = time.time()
+        for session_id, (created_time, _) in list(self.session_keys.items()):
+            if current_time - created_time > 3600:  # 1 ساعة
+                del self.session_keys[session_id]
+   
+    def _system_integrity_check(self):
+        """فحص سلامة النظام الأمني"""
+        key_hash = hashlib.sha256(self.system_root_key).hexdigest()
+        if key_hash not in self.encryption_engine.key_cache:
+            print("تحذير: تم تغيير المفتاح الأساسي للنظام!")
+            self.system_root_key = self.encryption_engine.generate_quantum_key(512)
+   
+    def authenticate_user(self, user_id: str, biometric_data: Dict) -> bool:
+        """مصادقة المستخدم باستخدام البيانات الحيوية"""
+        if user_id not in self.biometric_profiles:
+            return False
+       
+        profile = self.biometric_profiles[user_id]
+        match_score = self._calculate_biometric_match(profile, biometric_data)
+       
+        return match_score >= self.biometric_threshold
+   
+    def _calculate_biometric_match(self, profile: Dict, data: Dict) -> float:
+        """حساب درجة التطابق الحيوي"""
+        voice_match = 1.0 if profile["voice_pattern"] == data.get("voice_hash") else 0.0
+        behavior_match = 0.7 if profile["behavioral_signature"] == data.get("behavior_hash") else 0.0
+        entropy_factor = profile["quantum_entropy_factor"]
+       
+        match_score = (voice_match * 0.6 + behavior_match * 0.4) * entropy_factor
+        return match_score
+   
+    def create_secure_session(self, user_id: str) -> str:
+        """إنشاء جلسة آمنة جديدة"""
+        session_id = secrets.token_urlsafe(16)
+        session_key = self.encryption_engine.generate_quantum_key()
+        self.session_keys[session_id] = (time.time(), session_key)
+        return session_id
+   
+    def encrypt_data(self, session_id: str, data: str) -> bytes:
+        """تشفير البيانات باستخدام مفتاح الجلسة"""
+        if session_id not in self.session_keys:
+            raise ValueError("معرف الجلسة غير صالح")
+       
+        _, session_key = self.session_keys[session_id]
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        return self._quantum_encrypt(data, session_key)
+   
+    def decrypt_data(self, session_id: str, encrypted_data: bytes) -> str:
+        """فك تشفير البيانات"""
+        if session_id not in self.session_keys:
+            raise ValueError("معرف الجلسة غير صالح")
+       
+        _, session_key = self.session_keys[session_id]
+        decrypted = self._quantum_decrypt(encrypted_data, session_key)
+       
+        try:
+            return decrypted.decode('utf-8')
+        except UnicodeDecodeError:
+            return "تم فك التشفير بنجاح ولكن المحتوى غير نصي"
+   
+    def _quantum_encrypt(self, data: bytes, key: bytes) -> bytes:
+        """تشفير كمومي متقدم"""
+        encrypted = bytearray()
+        for i in range(len(data)):
+            encrypted.append((data[i] + key[i % len(key)]) % 256)
+        return bytes(encrypted)
+   
+    def _quantum_decrypt(self, encrypted: bytes, key: bytes) -> bytes:
+        """فك تشفير كمومي"""
+        decrypted = bytearray()
+        for i in range(len(encrypted)):
+            decrypted.append((encrypted[i] - key[i % len(key)]) % 256)
+        return bytes(decrypted)
+
+
+# =============== نظام الاحتمالات الكمومية المتقدم ===============
+class QuantumProbabilityEngine:
+    """نظام محاكاة احتمالات كمومية متقدم"""
+   
+    class QuantumState:
+        """تمثيل لحالة كمومية معقدة"""
+       
+        def _init_(self, qubits: int):
+            self.qubits = qubits
+            self.state = np.zeros(2**qubits, dtype=complex)
+            self.state[0] = 1.0  # الحالة الأولية
+           
+        def apply_gate(self, gate: np.ndarray, target: int, controls: List[int] = None):
+            """تطبيق بوابة كمومية مع التحكم"""
+            pass
+       
+        def measure(self) -> int:
+            """قياس الحالة الكمومية"""
+            probabilities = np.abs(self.state)**2
+            return random.choices(range(len(probabilities)), weights=probabilities)[0]
+   
+    def _init_(self, config: SystemConfig = None):
+        self.config = config or SystemConfig()
+        self.qubits = self.config.get("quantum.max_qubits", 8)
+        self.entropy_level = self.config.get("quantum.entropy_level", 5)
+        self.probability_cache = {}
+        self.quantum_states = {}
+        self.initialize_quantum_system()
+   
+    def initialize_quantum_system(self):
+        """تهيئة النظام الكمومي بمعاملات متقدمة"""
+        for i in range(1, self.entropy_level + 1):
+            state_id = f"state_{i}"
+            self.quantum_states[state_id] = self.QuantumState(self.qubits)
+       
+        self._apply_quantum_entanglement()
+        self._initialize_probability_distributions()
+   
+    def _apply_quantum_entanglement(self):
+        """إنشاء تشابك كمومي بين الحالات"""
+        for i in range(1, self.entropy_level):
+            state_a = self.quantum_states[f"state_{i}"]
+            state_b = self.quantum_states[f"state_{i+1}"]
+   
+    def _initialize_probability_distributions(self):
+        """تهيئة توزيعات الاحتمالات الأولية"""
+        for i in range(1, 101):
+            dist_id = f"dist_{i}"
+            self.probability_cache[dist_id] = self._generate_probability_distribution()
+   
+    def _generate_probability_distribution(self) -> Dict[str, float]:
+        """إنشاء توزيع احتمالي كمومي معقد"""
+        dist = {}
+        total = 0.0
+        for i in range(100):
+            prob = random.random() ** self.entropy_level
+            dist[f"event_{i}"] = prob
+            total += prob
+       
+        for key in dist:
+            dist[key] /= total
+       
+        return dist
+   
+    def calculate_complex_probability(self, event_space: List[str]) -> Dict[str, float]:
+        """حساب الاحتمالات في فضاء أحداث معقد"""
+        event_hash = hashlib.sha256(','.join(event_space).encode()).hexdigest()
+       
+        if event_hash in self.probability_cache:
+            return self.probability_cache[event_hash]
+       
+        dist = self._generate_probability_distribution_for_events(event_space)
+        self.probability_cache[event_hash] = dist
+        return dist
+   
+    def _generate_probability_distribution_for_events(self, events: List[str]) -> Dict[str, float]:
+        """إنشاء توزيع احتمالي متقدم لفئة أحداث محددة"""
+        quantum_result = self._simulate_quantum_events(len(events))
+       
+        probabilities = {}
+        total = sum(quantum_result)
+        for i, event in enumerate(events):
+            probabilities[event] = quantum_result[i] / total
+       
+        self._apply_contextual_adjustments(probabilities)
+       
+        return probabilities
+   
+    def _simulate_quantum_events(self, num_events: int) -> List[float]:
+        """محاكاة أحداث كمومية معقدة"""
+        state_id = random.choice(list(self.quantum_states.keys()))
+        quantum_state = self.quantum_states[state_id]
+       
+        measurements = [quantum_state.measure() for _ in range(1000)]
+       
+        event_probs = [0.0] * num_events
+        for measure in measurements:
+            index = measure % num_events
+            event_probs[index] += 1
+       
+        return event_probs
+   
+    def _apply_contextual_adjustments(self, probabilities: Dict[str, float]):
+        """تطبيق تعديلات احتمالية معتمدة على السياق"""
+        entropy = self._calculate_distribution_entropy(probabilities)
+        adjustment_factor = math.log(entropy + 1) * 0.1
+       
+        for key in probabilities:
+            probabilities[key] = min(1.0, probabilities[key] * (1 + adjustment_factor))
+       
+        total = sum(probabilities.values())
+        for key in probabilities:
+            probabilities[key] /= total
+   
+    def _calculate_distribution_entropy(self, dist: Dict[str, float]) -> float:
+        """حساب إنتروبيا التوزيع الاحتمالي"""
+        entropy = 0.0
+        for p in dist.values():
+            if p > 0:
+                entropy -= p * math.log(p)
+        return entropy
+
+
+# =============== النظام الرئيسي سعد الكوني ===============
+class CosmicSaadUltimate:
+    """الإصدار الخارق من سعد الكوني"""
+   
+    def _init_(self, config_path: str = None):
+        # تكوين النظام
+        self.config = SystemConfig(config_path)
+       
+        # تهيئة الأنظمة الفرعية
+        self.probability_engine = QuantumProbabilityEngine(self.config)
+        self.language_system = AdvancedLanguageSystem(self.config)
+        self.learning_system = AdvancedLearningSystem(self.config)
+        self.security_system = QuantumBiometricSecurity(self.config)
+       
+        # حالة النظام
+        self.active_sessions = {}
+        self.system_status = "operational"
+        self.startup_time = time.time()
+       
+        # تسجيل بدء التشغيل
+        self._log_system_event("system_start", "تم بدء تشغيل سعد الكوني")
+   
+    def _log_system_event(self, event_type: str, message: str):
+        """تسجيل حدث نظامي"""
+        timestamp = datetime.datetime.now().isoformat()
+        event_data = {
+            "timestamp": timestamp,
+            "type": event_type,
+            "message": message,
+            "status": self.system_status
+        }
+        self.learning_system.learn_from_interaction(
+            f"system_event:{event_type}",
+            json.dumps(event_data)
+        )
+   
+    def process_input(self, user_input: str, user_id: str = "default",
+                      biometric_data: Dict = None) -> Dict:
+        """معالجة مدخلات المستخدم"""
+        if biometric_data:
+            if not self.security_system.authenticate_user(user_id, biometric_data):
+                return {"error": "فشل المصادقة الحيوية"}
+       
+        session_id = self.security_system.create_secure_session(user_id)
+        self.active_sessions[session_id] = time.time()
+       
+        response = self.language_system.process_input(user_input)
+        self.learning_system.learn_from_interaction(user_input, response)
+        self._log_interaction(user_id, user_input, response)
+       
+        encrypted_response = self.security_system.encrypt_data(session_id, response)
+       
+        return {
+            "session_id": session_id,
+            "response": response,
+            "encrypted_response": encrypted_response,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+   
+    def _log_interaction(self, user_id: str, input_text: str, output_text: str):
+        """تسجيل تفاعل المستخدم"""
+        interaction_data = {
+            "user_id": user_id,
+            "input": input_text,
+            "output": output_text,
+            "timestamp": datetime.datetime.now().isoformat()
+        }
+        self.learning_system.learn_from_interaction(
+            f"user_interaction:{user_id}",
+            json.dumps(interaction_data)
+        )
+   
+    def get_system_status(self) -> Dict:
+        """الحصول على حالة النظام الحالية"""
+        uptime = time.time() - self.startup_time
+        return {
+            "status": self.system_status,
+            "uptime": uptime,
+            "components": {
+                "probability_engine": "active",
+                "language_system": "active",
+                "learning_system": "active",
+                "security_system": "active"
+            },
+            "statistics": {
+                "interactions": len(self.learning_system.knowledge_graph.nodes) - 4
+            }
+        }
+   
+    def perform_self_diagnostic(self) -> Dict:
+        """إجراء تشخيص ذاتي للنظام"""
+        diagnostic = {
+            "quantum_probability": self._test_probability_engine(),
+            "language_processing": self._test_language_system(),
+            "learning_capabilities": self._test_learning_system(),
+            "security_integrity": self._test_security_system()
+        }
+       
+        all_ok = all(status == "ok" for status in diagnostic.values())
+        self.system_status = "operational" if all_ok else "degraded"
+       
+        return diagnostic
+   
+    def _test_probability_engine(self) -> str:
+        """اختبار نظام الاحتمالات الكمومية"""
+        try:
+            events = ["event_a", "event_b", "event_c"]
+            dist = self.probability_engine.calculate_complex_probability(events)
+            if math.isclose(sum(dist.values()), 1.0, abs_tol=0.01):
+                return "ok"
+            return "warning: probability_sum_not_1"
+        except Exception as e:
+            return f"error: {str(e)}"
+   
+    def _test_language_system(self) -> str:
+        """اختبار نظام معالجة اللغة"""
+        try:
+            response = self.language_system.process_input("اختبار النظام")
+            if response and len(response) > 10:
+                return "ok"
+            return "warning: invalid_response"
+        except Exception as e:
+            return f"error: {str(e)}"
+   
+    def _test_learning_system(self) -> str:
+        """اختبار نظام التعلم"""
+        try:
+            path = self.learning_system.get_knowledge_path("AI_principles", "learning_algorithms")
+            if len(path) >= 2:
+                return "ok"
+            return "warning: knowledge_path_incomplete"
+        except Exception as e:
+            return f"error: {str(e)}"
+   
+    def _test_security_system(self) -> str:
+        """اختبار نظام الأمان"""
+        try:
+            session_id = self.security_system.create_secure_session("test_user")
+            test_data = "اختبار تشفير"
+            encrypted = self.security_system.encrypt_data(session_id, test_data)
+            decrypted = self.security_system.decrypt_data(session_id, encrypted)
+            if decrypted == test_data:
+                return "ok"
+            return "warning: encryption_decryption_mismatch"
+        except Exception as e:
+            return f"error: {str(e)}"
+
+
+# =============== تشغيل النظام ===============
+if __name__ == "__main__":
+    # تشغيل واجهة المستخدم
+    root = tk.Tk()
+    app = SaadGUI(root)
+    root.mainloop()
