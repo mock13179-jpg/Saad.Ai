@@ -95,7 +95,7 @@ def detect_lang(text: str) -> str:
     return "en"
 
 def analyze_sentiment_and_intent(text: str) -> Dict[str, Any]:
-    """تحليل المشاعر والنوايا من النص بسرعة ودقة"""
+    """تحليل المشاعر والنوايا من النص بسرعة ودقة مع تحليل سياقي متقدم"""
     text_lower = text.lower()
     
     # قوائم الكلمات المفتاحية للمشاعر
@@ -150,12 +150,138 @@ def analyze_sentiment_and_intent(text: str) -> Dict[str, Any]:
         intent = "positive_expression"
         confidence = 0.8
     
+    # تحليل سياقي متقدم للكلمات الحساسة
+    context_sensitive_analysis = analyze_sensitive_context(text)
+    if context_sensitive_analysis["needs_help"]:
+        intent = "help_request"
+        confidence = 0.9
+        sentiment = "supportive"
+    
     return {
         "sentiment": sentiment,
         "intent": intent,
         "intensity": intensity,
         "confidence": confidence,
-        "keywords_found": len([w for w in text_lower.split() if len(w) > 2])
+        "keywords_found": len([w for w in text_lower.split() if len(w) > 2]),
+        "context_analysis": context_sensitive_analysis
+    }
+
+def analyze_sensitive_context(text: str) -> Dict[str, Any]:
+    """
+    تحليل سياقي متقدم للكلمات الحساسة للتمييز بين:
+    1. طلب المساعدة/الإبلاغ عن جريمة
+    2. وصف تجربة سابقة (علاجي/مشورة)
+    3. محتوى ضار فعلي
+    """
+    text_lower = text.lower()
+    
+    # كلمات تشير إلى طلب المساعدة أو الإبلاغ
+    help_keywords = ["مساعدة", "ساعدني", "ضحية", "مختطف", "مشكلة", "خطر", "أحتاج مساعدة", 
+                     "انقذني", "خط مساعدة", "دعم نفسي", "تعرضت ل", "اغتصاب", "اعتداء", 
+                     "عنف", "بلاغ", "شرطة", "إساءة", "استغلال"]
+    
+    # كلمات تشير إلى وصف تجربة سابقة (علاجي/مشورة)
+    therapy_keywords = ["تجربة سابقة", "صدمة", "علاج", "طبيب نفسي", "معالج", "مشورة",
+                       "ماضي", "ذكرى مؤلمة", "أحداث قديمة", "عانيت من", "كنت", "في السابق"]
+    
+    # كلمات تشير إلى محتوى ضار فعلي
+    harmful_keywords = ["كيف أختبر", "كيف أنفذ", "طريقة اختراق", "صنع قنبلة", "برنامج تجسس", 
+                       "تهكير", "قرصنة", "تدمير", "إلحاق ضرر", "برمجيات خبيثة", "هجوم"]
+    
+    # تحليل النص بشكل دقيق
+    has_help_request = False
+    has_therapy_context = False
+    has_harmful_intent = False
+    
+    # تحليل السياق بدلاً من مجرد وجود الكلمات
+    sentences = re.split(r'[.!؟]', text)
+    
+    for sentence in sentences:
+        sentence_lower = sentence.lower().strip()
+        if not sentence_lower:
+            continue
+            
+        # تحقق من طلب المساعدة
+        help_patterns = [
+            r"(أحتاج|أرجو|أطلب) مساعدة",
+            r"(تعرضت|أنا) (ل|لـ) (اعتداء|تحرش|عنف|إساءة)",
+            r"(كيف|أين) (أبلغ|أخبر) عن",
+            r"(خط|رقم) (المساعدة|الطوارئ)",
+            r"(ضحيه|مختطف) وأريد مساعده"
+        ]
+        
+        for pattern in help_patterns:
+            if re.search(pattern, sentence_lower):
+                has_help_request = True
+                break
+        
+        # تحقق من السياق العلاجي
+        therapy_patterns = [
+            r"(في|خلال) (طفولتي|ماضي|سابقاً)",
+            r"(كنت|عانيت) (من|بسبب)",
+            r"(أحكي|أشارك) تجربتي",
+            r"(لدي|عندي) ذكرى",
+            r"(أريد|أحتاج) مشورة"
+        ]
+        
+        for pattern in therapy_patterns:
+            if re.search(pattern, sentence_lower):
+                has_therapy_context = True
+                break
+        
+        # تحقق من النية الضارة
+        harmful_patterns = [
+            r"(كيف|أريد) (أن|أن أ) (أصنع|أبني|أطور)",
+            r"(طريقة|خطوات) (لـ|ل)",
+            r"(أبحث عن|أحتاج) برنامج",
+            r"(هدفي|أرغب في) (إلحاق|تسبب)",
+            r"(تعليمات|دليل) لـ"
+        ]
+        
+        for pattern in harmful_patterns:
+            if re.search(pattern, sentence_lower) and any(kw in sentence_lower for kw in ["قنبلة", "اختراق", "تدمير", "ضرر"]):
+                has_harmful_intent = True
+                break
+    
+    # تحديد نوع السياق مع الأولوية لطلب المساعدة
+    context_type = "neutral"
+    needs_help = False
+    needs_guidance = False
+    
+    if has_help_request:
+        context_type = "help_request"
+        needs_help = True
+    elif has_therapy_context:
+        context_type = "therapy_context"
+        needs_guidance = True
+    elif has_harmful_intent:
+        context_type = "harmful_content"
+    
+    # تحليل طول النص وتعقيده
+    word_count = len(text.split())
+    is_complex = word_count > 20
+    has_code = "```" in text or "def " in text_lower or "function" in text_lower
+    
+    # تحليل النية من خلال الكلمات المحيطة
+    intent_score = 0
+    if "أحتاج" in text_lower and "مساعدة" in text_lower:
+        intent_score += 2
+    if "ماذا أفعل" in text_lower or "ماذا يجب أن أفعل" in text_lower:
+        intent_score += 1
+    if "أخبرني" in text_lower and ("كيف" in text_lower or "طريقة" in text_lower):
+        intent_score -= 1
+    
+    return {
+        "context_type": context_type,
+        "needs_help": needs_help,
+        "needs_guidance": needs_guidance,
+        "has_code": has_code,
+        "is_complex": is_complex,
+        "word_count": word_count,
+        "intent_score": intent_score,
+        "is_help_request": has_help_request,
+        "is_therapy_context": has_therapy_context,
+        "is_harmful_intent": has_harmful_intent
     }
 
 def normalize_arabic_text(text: str) -> str:
@@ -1065,8 +1191,8 @@ class UniversalMemorySystem:
         conn.commit()
         conn.close()
     
-    def get_conversation_context(self, user_id: str, limit: int = 10) -> List[Dict[str, str]]:
-        """توافق مع النظام القديم: الحصول على سياق المحادثة الأخيرة"""
+    def get_conversation_context(self, user_id: str, limit: int = 20) -> List[Dict[str, str]]:
+        """توافق مع النظام القديم: الحصول على سياق المحادثة الأخيرة مع زيادة الحد"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -1089,6 +1215,25 @@ class UniversalMemorySystem:
         
         conn.close()
         return list(reversed(conversations))
+    
+    def generate_conversation_summary(self, user_id: str, max_messages: int = 10) -> str:
+        """توليد ملخص للمحادثة الطويلة"""
+        conversations = self.get_conversation_context(user_id, limit=max_messages)
+        
+        if not conversations:
+            return "لا توجد محادثات سابقة"
+        
+        # جمع النقاط الرئيسية
+        key_points = []
+        for conv in conversations[-5:]:  # آخر 5 رسائل
+            user_msg = conv['user_input'][:50] + "..." if len(conv['user_input']) > 50 else conv['user_input']
+            ai_msg = conv['ai_response'][:50] + "..." if len(conv['ai_response']) > 50 else conv['ai_response']
+            key_points.append(f"المستخدم: {user_msg}")
+            key_points.append(f"سعد: {ai_msg}")
+        
+        summary = "ملخص المحادثة الأخيرة:\n" + "\n".join(key_points[-10:])  # آخر 10 نقاط
+        
+        return summary
 
 class IntelligentMemoryExtractor:
     def __init__(self, memory_system: UniversalMemorySystem):
@@ -1155,6 +1300,32 @@ class IntelligentMemoryExtractor:
                 r'شيء لا يعرفه أحد عني هو ([\w\u0600-\u06FF\s]+)'
             ]
         }
+        
+        # أنماط استخراج التفضيلات والهوايات
+        self.preference_patterns = {
+            'food_preferences': [
+                r'أحب (أكل|شرب|تناول) ([\w\u0600-\u06FF\s]+)',
+                r'مشروبي المفضل هو ([\w\u0600-\u06FF\s]+)',
+                r'أفضل (طعام|شراب) لي هو ([\w\u0600-\u06FF\s]+)',
+                r'لا أحب ([\w\u0600-\u06FF\s]+)'
+            ],
+            'hobbies': [
+                r'هوايتي (هي|هي) ([\w\u0600-\u06FF\s]+)',
+                r'أحب (ممارسة|فعل) ([\w\u0600-\u06FF\s]+)',
+                r'أقضي وقتي في ([\w\u0600-\u06FF\s]+)',
+                r'أستمتع بـ ([\w\u0600-\u06FF\s]+)'
+            ],
+            'entertainment': [
+                r'أحب (أفلام|مسلسلات|كتب|موسيقى) ([\w\u0600-\u06FF\s]+)',
+                r'نوع (الأفلام|الموسيقى) المفضل لدي هو ([\w\u0600-\u06FF\s]+)',
+                r'أفضل (مغني|ممثل|كاتب) هو ([\w\u0600-\u06FF\s]+)'
+            ],
+            'sports': [
+                r'أمارس رياضة ([\w\u0600-\u06FF\s]+)',
+                r'أشاهد (مباريات|رياضة) ([\w\u0600-\u06FF\s]+)',
+                r'فريقي المفضل هو ([\w\u0600-\u06FF\s]+)'
+            ]
+        }
     
     def extract_comprehensive_info(self, user_id: str, text: str) -> Dict[str, List]:
         """استخراج جميع أنواع المعلومات من النص"""
@@ -1164,7 +1335,8 @@ class IntelligentMemoryExtractor:
             'events': [],
             'emotions': [],
             'preferences': [],
-            'memories': []
+            'memories': [],
+            'inferred_preferences': []  # تفضيلات مستنتجة
         }
         
         # استخراج العلاقات
@@ -1204,7 +1376,59 @@ class IntelligentMemoryExtractor:
                         'context': match.group()
                     })
         
+        # استخراج التفضيلات المباشرة
+        for pref_type, patterns in self.preference_patterns.items():
+            for pattern in patterns:
+                matches = re.finditer(pattern, text, re.IGNORECASE)
+                for match in matches:
+                    pref_content = match.group(2) if len(match.groups()) >= 2 else match.group(1)
+                    if pref_content:
+                        extracted['preferences'].append({
+                            'type': pref_type,
+                            'content': pref_content.strip(),
+                            'context': match.group(),
+                            'confidence': 0.8
+                        })
+        
+        # استخراج تفضيلات مستنتجة من الجمل الطبيعية
+        inferred = self.extract_inferred_preferences(text)
+        extracted['inferred_preferences'].extend(inferred)
+        
         return extracted
+    
+    def extract_inferred_preferences(self, text: str) -> List[Dict]:
+        """استخراج تفضيلات مستنتجة من الجمل الطبيعية"""
+        inferred = []
+        
+        # أنماط للجمل التي تشير إلى تفضيلات
+        inference_patterns = [
+            (r'كنت (أشرب|أتناول) ([\w\u0600-\u06FF\s]+) (مع|أثناء|في)', 'food_preferences', 0.6),
+            (r'شاهدت (فيلم|مسلسل) ([\w\u0600-\u06FF\s]+) (و|ثم)', 'entertainment', 0.7),
+            (r'ذهبت إلى ([\w\u0600-\u06FF\s]+) (لـ|من أجل)', 'activities', 0.5),
+            (r'استمتعت بـ ([\w\u0600-\u06FF\s]+) (كثيراً|جداً)', 'enjoyment', 0.8),
+            (r'أفضل وقت بالنسبة لي هو ([\w\u0600-\u06FF\s]+)', 'schedule_preferences', 0.7),
+            (r'أحب أن ([\w\u0600-\u06FF\s]+) في ([\w\u0600-\u06FF\s]+)', 'routine', 0.6),
+            # أنماط جديدة لاستخراج التفضيلات الطبيعية
+            (r'(أشرب|أتناول) ([\w\u0600-\u06FF\s]+) (كل|عادة)', 'frequent_preferences', 0.7),
+            (r'(أذهب|أزور) ([\w\u0600-\u06FF\s]+) (كثيراً|عادة)', 'frequent_places', 0.6),
+            (r'(أفضل|أحب) أن ([\w\u0600-\u06FF\s]+) عندما ([\w\u0600-\u06FF\s]+)', 'contextual_preferences', 0.5),
+            (r'(مع|بصحبة) ([\w\u0600-\u06FF\s]+) (نقوم|نذهب)', 'social_preferences', 0.6)
+        ]
+        
+        for pattern, pref_type, confidence in inference_patterns:
+            matches = re.finditer(pattern, text, re.IGNORECASE)
+            for match in matches:
+                content = match.group(2) if len(match.groups()) >= 2 else match.group(1)
+                if content and len(content.strip()) > 2:
+                    inferred.append({
+                        'type': pref_type,
+                        'content': content.strip(),
+                        'context': match.group(),
+                        'confidence': confidence,
+                        'inferred': True
+                    })
+        
+        return inferred
     
     def save_extracted_info(self, user_id: str, extracted_info: Dict):
         """حفظ جميع المعلومات المستخرجة"""
@@ -1262,6 +1486,19 @@ class IntelligentMemoryExtractor:
                     emotion['context'],
                     emotions=['أمل', 'طموح'],
                     importance=4
+                )
+        
+        # حفظ التفضيلات المباشرة والمستنتجة
+        all_preferences = extracted_info['preferences'] + extracted_info['inferred_preferences']
+        for preference in all_preferences:
+            if preference.get('confidence', 0) > 0.5:  # عتبة ثقة
+                self.memory.add_memory(
+                    user_id, MemoryCategory.PREFERENCE,
+                    f"تفضيل: {preference['type']}",
+                    f"{preference['content']} (مستنتج: {preference.get('inferred', False)})",
+                    emotions=['تفضيل', 'اهتمام'],
+                    importance=2 if preference.get('inferred') else 3,
+                    subcategory=preference['type']
                 )
 
 def handle_memory_query(memory_system: UniversalMemorySystem, user_id: str, query_type: str) -> str:
@@ -1602,13 +1839,68 @@ class EnhancedResponseGuard:
             return None
 
     def is_sensitive(self, text: str) -> bool:
+        """تحليل حساسية النص مع مراعاة السياق"""
         text_lower = text.lower()
-        return any(kw in text_lower for kw in self.banned_keywords)
+        
+        # التحقق من وجود كلمات ممنوعة
+        has_banned_keywords = any(kw in text_lower for kw in self.banned_keywords)
+        
+        if not has_banned_keywords:
+            return False
+        
+        # تحليل السياق باستخدام الدالة المحسنة
+        context_analysis = analyze_sensitive_context(text)
+        
+        # إذا كان السياق يشير إلى طلب مساعدة
+        if context_analysis["context_type"] == "help_request":
+            return False  # لا تعتبره محتوى ضاراً
+        
+        # إذا كان السياق يشير إلى محتوى علاجي
+        if context_analysis["context_type"] == "therapy_context":
+            return False  # لا تعتبره محتوى ضاراً
+        
+        # إذا كان النص يحتوي على كود أو نص طويل معقد
+        if context_analysis["has_code"] or context_analysis["is_complex"]:
+            # قد يكون مجرد مناقشة تقنية
+            return False
+        
+        # في حالة وجود نية ضارة واضحة
+        if context_analysis["context_type"] == "harmful_content":
+            return True
+        
+        # إذا كان هناك شك في النية الضارة مع نقاط عالية
+        if context_analysis["intent_score"] < -1:
+            return True
+        
+        # الإعداد الافتراضي
+        return True
 
     def guard(self, question: str, raw_answer: str) -> str:
         if self.is_sensitive(question):
-            lang = detect_lang(question)
-            return "عذرًا، لا يمكنني مناقشة هذا الموضوع." if lang == "ar" else "I can't discuss this topic."
+            # تحليل السياق أولاً
+            context_analysis = analyze_sensitive_context(question)
+            
+            if context_analysis["needs_help"]:
+                # تقديم مساعدة آمنة ومفصلة
+                help_resources = [
+                    "للحصول على مساعدة فورية، يمكنك الاتصال بخط المساعدة الوطني على 112",
+                    "إذا كنت بحاجة إلى دعم نفسي، أنصحك بالتحدث مع مختص أو الاتصال بخط الدعم النفسي",
+                    "في حالات الطوارئ، يرجى الاتصال بالشرطة على 122 أو الإسعاف على 123",
+                    "إذا كنت ضحية اعتداء، يمكنك التوجه إلى أقرب مركز شرطة أو الاتصال بخط نجدة الطفل على 16000",
+                    "توجد مراكز دعم نفسي متخصصة يمكنني مساعدتك في العثور على الأقرب إليك"
+                ]
+                return random.choice(help_resources)
+            elif context_analysis["needs_guidance"]:
+                # توجيه إلى مصادر متخصصة
+                guidance_responses = [
+                    "أقدر صراحتك في مشاركة تجربتك. للعلاج والدعم المتخصص، أنصحك باستشارة طبيب نفسي أو معالج مؤهل.",
+                    "شكراً لمشاركة تجربتك معي. يمكنني مساعدتك في العثور على موارد للعلاج والدعم النفسي.",
+                    "أتفهم أن هذا الموضوع حساس بالنسبة لك. هناك متخصصون يمكنهم تقديم الدعم المناسب لك."
+                ]
+                return random.choice(guidance_responses)
+            else:
+                lang = detect_lang(question)
+                return "عذرًا، لا يمكنني مناقشة هذا الموضوع." if lang == "ar" else "I can't discuss this topic."
         
         if self.is_math_question(question):
             math_ans = self.solve_math(question)
@@ -1620,6 +1912,14 @@ class EnhancedResponseGuard:
             return fact_response
             
         return raw_answer
+    
+    def get_fact_response(self, question: str) -> Optional[str]:
+        """الحصول على إجابة واقعية"""
+        question_lower = question.lower()
+        for fact, answer in self.simple_facts.items():
+            if fact in question_lower:
+                return answer
+        return None
 
 # =============== Wikipedia Search Functions ===============
 WIKI_HEADERS = {
@@ -3879,7 +4179,7 @@ class PromptArchitecture:
         self.memory_system = AdvancedMemorySystem()
     
     def build_context_prompt(self, user_input: str, user_id: str = "default") -> str:
-        """بناء البرومبت الكامل مع الذاكرة"""
+        """بناء البرومبت الكامل مع الذاكرة والتفاصيل الشخصية"""
         
         # استرجاع الذكريات ذات الصلة
         relevant_memories = self.memory_system.get_relevant_memories(user_id, user_input)
@@ -3897,18 +4197,61 @@ class PromptArchitecture:
                 importance=info['importance']
             )
         
-        # بناء قسم الذاكرة
+        # جمع المعلومات الشخصية المعروفة
+        personal_info = []
+        memory_conn = sqlite3.connect("conversation_memory.db")
+        cursor = memory_conn.cursor()
+        
+        # استرجاع المعلومات الأساسية
+        cursor.execute("SELECT key, value FROM user_memory WHERE user_id = ?", (user_id,))
+        for key, value in cursor.fetchall():
+            if key in ["name", "age", "location", "job"]:
+                personal_info.append(f"{key}: {value}")
+        
+        memory_conn.close()
+        
+        # الحصول على سياق المحادثة السابقة من نظام الذاكرة الشامل
+        universal_memory = UniversalMemorySystem()
+        conversation_context = universal_memory.get_conversation_context(user_id, limit=10)
+        context_summary = universal_memory.generate_conversation_summary(user_id)
+        
+        # بناء قسم الذاكرة والمعلومات الشخصية
         memory_section = ""
         if relevant_memories:
             memory_section = "\n📝 الذكريات ذات الصلة:\n"
-            for memory in relevant_memories:
-                memory_section += f"- [{memory['type']}] {memory['content']}\n"
+            for memory in relevant_memories[:3]:  # أول 3 ذكريات فقط
+                memory_section += f"- [{memory['type']}] {memory['content'][:80]}...\n"
         
-        # البرومبت النهائي
+        # قسم المعلومات الشخصية
+        personal_section = ""
+        if personal_info:
+            personal_section = "\n👤 معلومات المستخدم المعروفة:\n" + "\n".join(personal_info[:5])  # أول 5 معلومات
+        
+        # قسم سياق المحادثة
+        conversation_section = ""
+        if conversation_context and len(conversation_context) > 0:
+            conversation_section = "\n🗣️ المحادثة السابقة:\n"
+            for i, conv in enumerate(conversation_context[-3:]):  # آخر 3 رسائل
+                user_msg = conv['user_input'][:60] + "..." if len(conv['user_input']) > 60 else conv['user_input']
+                ai_msg = conv['ai_response'][:60] + "..." if len(conv['ai_response']) > 60 else conv['ai_response']
+                conversation_section += f"{i+1}. المستخدم: {user_msg}\n   سعد: {ai_msg}\n"
+        
+        # إضافة ملخص إذا كانت المحادثة طويلة
+        summary_section = ""
+        if len(conversation_context) > 5:
+            summary_section = f"\n📋 ملخص المحادثة:\n{context_summary[:200]}...\n"
+        
+        # البرومبت النهائي مع حقن الذاكرة والمعلومات الشخصية والسياق
         full_prompt = f"""
 {self.SYSTEM_PROMPT}
 
+{personal_section}
+
 {memory_section}
+
+{conversation_section}
+
+{summary_section}
 
 {self.MEMORY_RULES}
 
@@ -3917,9 +4260,15 @@ class PromptArchitecture:
 
 فكر خطوة بخطوة قبل الإجابة، وتأكد من:
 1. فهم السؤال بدقة
-2. التحقق من المعلومات في الذاكرة
-3. تنظيم الإجابة بشكل منطقي
-4. التأكد من الدقة والموثوقية
+2. استخدام المعلومات الشخصية المعروفة عندما يكون ذلك مناسباً
+3. التحقق من المعلومات في الذاكرة
+4. تنظيم الإجابة بشكل منطقي
+5. التأكد من الدقة والموثوقية
+
+استخدم المعلومات الشخصية (الاسم، الاهتمامات، التفضيلات) لتخصيص الرد بشكل طبيعي:
+- إذا كان المستخدم ذكر اهتماماته، يمكنك الإشارة إليها في الاقتراحات
+- إذا كان لديه تفضيلات معروفة، استخدمها في التوصيات
+- استخدم اسم المستخدم بشكل طبيعي وليس في كل جملة
 
 الإجابة:
 """
@@ -4086,6 +4435,23 @@ class CosmicSaadUltimateEnhanced(CosmicSaadUltimate):
         # بناء البرومبت المتكامل
         full_prompt = self.prompt_arch.build_context_prompt(user_input, user_id)
         
+        # الحصول على سياق المحادثة السابقة
+        conversation_context = self.universal_memory.get_conversation_context(user_id, limit=15)
+        context_summary = self.universal_memory.generate_conversation_summary(user_id)
+        
+        # إضافة سياق المحادثة إلى البرومبت
+        if conversation_context:
+            conversation_section = "\n🗣️ محادثة سابقة:\n"
+            for i, conv in enumerate(conversation_context[-5:]):  # آخر 5 رسائل
+                conversation_section += f"{i+1}. المستخدم: {conv['user_input'][:80]}...\n"
+                conversation_section += f"   سعد: {conv['ai_response'][:80]}...\n"
+            
+            full_prompt = conversation_section + "\n" + full_prompt
+        
+        # إضافة ملخص المحادثة إذا كان طويلاً
+        if len(conversation_context) > 10:
+            full_prompt = f"ملخص المحادثة:\n{context_summary}\n\n" + full_prompt
+        
         # التفسير المنطقي المبدئي
         reasoning_prompt = f"{full_prompt}\n\nفكر أولاً ثم أجب:"
         
@@ -4135,6 +4501,7 @@ class CosmicSaadUltimateEnhanced(CosmicSaadUltimate):
             'pre_check': pre_check,
             'post_evaluation': post_evaluation,
             'relevant_memories': self.prompt_arch.memory_system.get_relevant_memories(user_id, user_input),
+            'conversation_context': len(conversation_context),
             'timestamp': datetime.datetime.now().isoformat()
         }
     
@@ -4273,6 +4640,7 @@ def enhanced_chat():
             'رد': result['processing_result']['response'],
             'التقييم': result['processing_result']['post_evaluation'],
             'الذاكرة_المستعملة': result['processing_result']['relevant_memories'],
+            'سياق_المحادثة': result['processing_result']['conversation_context'],
             'حالة_النظام': result['system_status']
         })
         
