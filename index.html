@@ -1268,7 +1268,80 @@
   </div>
   
   <script>
+  // ==================== نظام تعريف المستخدم ====================
+  class UserIdentity {
+    constructor() {
+      this.storageKey = 'saad_ai_user_id';
+      this.cookieName = 'saad_uid';
+      this.userId = null;
+      this.init();
+    }
+    
+    init() {
+      // 1. جرب تحميل من localStorage
+      this.userId = localStorage.getItem(this.storageKey);
+      
+      // 2. إذا مافيش، جرب الكوكيز
+      if (!this.userId) {
+        this.userId = this.getCookie(this.cookieName);
+      }
+      
+      // 3. إذا مافيش، أنشئ جديد
+      if (!this.userId) {
+        this.generateNewId();
+      }
+      
+      console.log('معرف المستخدم:', this.userId);
+    }
+    
+    generateNewId() {
+      // توليد معرف فريد
+      const timestamp = Date.now().toString(36);
+      const randomStr = Math.random().toString(36).substr(2, 12);
+      this.userId = `user_${timestamp}_${randomStr}`;
+      
+      // حفظ في localStorage
+      localStorage.setItem(this.storageKey, this.userId);
+      
+      // حفظ في كوكيز (كنسخة احتياطية)
+      this.setCookie(this.cookieName, this.userId, 30); // 30 يوم
+      
+      // إعلام المستخدم (اختياري)
+      console.log('✅ تم إنشاء معرف جديد لك:', this.userId);
+    }
+    
+    getCookie(name) {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        const [key, value] = cookie.trim().split('=');
+        if (key === name) return value;
+      }
+      return null;
+    }
+    
+    setCookie(name, value, days) {
+      const date = new Date();
+      date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+      document.cookie = `${name}=${value}; expires=${date.toUTCString()}; path=/`;
+    }
+    
+    getId() {
+      return this.userId;
+    }
+    
+    clear() {
+      localStorage.removeItem(this.storageKey);
+      this.setCookie(this.cookieName, '', -1); // حذف الكوكيز
+      this.userId = null;
+      this.generateNewId(); // إنشاء جديد فوراً
+    }
+  }
+
+  // ==================== بدء التطبيق الرئيسي ====================
   document.addEventListener('DOMContentLoaded', function() {
+    // إنشاء نسخة واحدة عامة لنظام تعريف المستخدم
+    window.saadUser = new UserIdentity();
+    
     // الحصول على العناصر
     const userInput = document.getElementById('userInput');
     const sendButton = document.getElementById('sendButton');
@@ -1405,6 +1478,62 @@
     // حفظ محادثات المستخدم
     function saveConversations() {
       localStorage.setItem('saadai_conversations', JSON.stringify(conversations));
+    }
+    
+    // ==================== وظائف الاتصال بالخادم ====================
+    // وظيفة إرسال الرسائل إلى الخادم مع معرف المستخدم
+    async function sendToSaad(content, type = 'text') {
+      const loadingId = showLoading();
+      
+      try {
+        const userId = window.saadUser.getId();
+        
+        if (!userId) {
+          throw new Error('لم يتم العثور على معرف المستخدم');
+        }
+        
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-User-ID': userId
+          },
+          body: JSON.stringify({
+            message: content,
+            user_id: userId,
+            type: type,
+            timestamp: new Date().toISOString(),
+            language: navigator.language || 'ar'
+          })
+        });
+        
+        if (!response.ok) {
+          if (response.status === 400) {
+            const error = await response.json();
+            if (error.reason === 'INVALID_USER_ID') {
+              window.saadUser.clear();
+              showToast('🔄 تم إعادة تهيئة الجلسة. يرجى إعادة المحاولة.', 3000);
+              throw new Error('INVALID_USER_ID');
+            }
+          }
+          throw new Error(`خطأ في الخادم: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        removeLoading(loadingId);
+        return data;
+        
+      } catch (error) {
+        removeLoading(loadingId);
+        if (error.message === 'INVALID_USER_ID') {
+          return { error: 'INVALID_USER_ID' };
+        }
+        console.error('❌ خطأ في الاتصال:', error);
+        return {
+          'رد': 'عذراً، حدث خطأ في الاتصال بالخادم.',
+          'error': error.message
+        };
+      }
     }
     
     // تهيئة الجسيمات
@@ -1574,7 +1703,7 @@
       }
       
       const reader = new FileReader();
-      reader.onload = function(e) {
+      reader.onload = async function(e) {
         const fileContent = e.target.result;
         const messageId = Date.now().toString();
         const fileName = file.name;
@@ -1583,79 +1712,61 @@
         addMessage(messageText, 'user', true, messageId);
         saveMessage(messageText, 'user', messageId);
         
-        // إرسال محتوى الملف إلى الخادم
-        sendFileContent(messageText);
-      };
-      reader.readAsText(file);
-      
-      // إعادة تعيين قيمة الإدخال للسماح برفع نفس الملف مرة أخرى إذا لزم الأمر
-      fileInput.value = '';
-    }
-    
-    async function sendFileContent(content) {
-      const loadingId = showLoading();
-      
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            "رسالة": content,
-            "معرف_المستخدم": 'guest_user',
-            "نوع": "ملف"
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        let botResponse = '';
-        
-        if (data.رد) {
-          botResponse = data.رد;
-          addMessage(botResponse, 'bot', true);
-          saveMessage(botResponse, 'bot');
-        } else if (data.responses) {
-          const responses = [
-            `[تقني] ${data.responses.technical || 'لا يوجد رد تقني'}`,
-            `[عملي] ${data.responses.practical || 'لا يوجد رد عملي'}`,
-            `[إبداعي] ${data.responses.creative || 'لا يوجد رد إبداعي'}`
-          ];
-          botResponse = responses.join('\n');
-          responses.forEach(response => {
-            addMessage(response, 'bot', true);
-            saveMessage(response, 'bot');
-          });
-        } else {
-          botResponse = 'تلقيت ردًا غير متوقع من الخادم';
-          addMessage(botResponse, 'bot', true);
-          saveMessage(botResponse, 'bot');
-        }
-        
-        // اقتراح عنوان للمحادثة إذا كانت هذه أول رسالة للمستخدم في المحادثة الحالية
-        if (!conversationTitleGenerated) {
-          const conv = conversations.find(c => c.id === currentConversationId);
-          if (conv && conv.messages && conv.messages.filter(m => m.sender === 'user').length === 1) {
-            const suggestedTitle = await suggestConversationTitle(content, botResponse);
-            if (suggestedTitle) {
-              conv.title = suggestedTitle;
-              saveConversations();
-              updateConversationList();
-            }
-            conversationTitleGenerated = true;
+        // إرسال محتوى الملف إلى الخادم باستخدام النظام الجديد
+        try {
+          const data = await sendToSaad(messageText, 'file');
+          
+          if (data.error && data.error === 'INVALID_USER_ID') {
+            addMessage('حدث خطأ في الجلسة. يرجى إعادة المحاولة.', 'bot', true);
+            saveMessage('حدث خطأ في الجلسة. يرجى إعادة المحاولة.', 'bot');
+            return;
           }
+          
+          let botResponse = '';
+          
+          if (data.رد) {
+            botResponse = data.رد;
+            addMessage(botResponse, 'bot', true);
+            saveMessage(botResponse, 'bot');
+          } else if (data.responses) {
+            const responses = [
+              `[تقني] ${data.responses.technical || 'لا يوجد رد تقني'}`,
+              `[عملي] ${data.responses.practical || 'لا يوجد رد عملي'}`,
+              `[إبداعي] ${data.responses.creative || 'لا يوجد رد إبداعي'}`
+            ];
+            botResponse = responses.join('\n');
+            responses.forEach(response => {
+              addMessage(response, 'bot', true);
+              saveMessage(response, 'bot');
+            });
+          } else {
+            botResponse = 'تلقيت ردًا غير متوقع من الخادم';
+            addMessage(botResponse, 'bot', true);
+            saveMessage(botResponse, 'bot');
+          }
+          
+          // اقتراح عنوان للمحادثة إذا كانت هذه أول رسالة للمستخدم في المحادثة الحالية
+          if (!conversationTitleGenerated) {
+            const conv = conversations.find(c => c.id === currentConversationId);
+            if (conv && conv.messages && conv.messages.filter(m => m.sender === 'user').length === 1) {
+              const suggestedTitle = await suggestConversationTitle(messageText, botResponse);
+              if (suggestedTitle) {
+                conv.title = suggestedTitle;
+                saveConversations();
+                updateConversationList();
+              }
+              conversationTitleGenerated = true;
+            }
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          addMessage(`حدث خطأ أثناء معالجة الملف: ${error.message}`, 'bot', true);
+          saveMessage(`حدث خطأ أثناء معالجة الملف: ${error.message}`, 'bot');
         }
-      } catch (error) {
-        console.error('Error:', error);
-        addMessage(`حدث خطأ أثناء معالجة الملف: ${error.message}`, 'bot', true);
-        saveMessage(`حدث خطأ أثناء معالجة الملف: ${error.message}`, 'bot');
-      } finally {
-        removeLoading(loadingId);
-      }
+      };
+      
+      reader.readAsText(file);
+      fileInput.value = '';
     }
     
     // تبديل الشريط الجانبي (يظهر قائمة المحادثات والإعدادات معاً)
@@ -1893,6 +2004,7 @@
     // إرسال التقييم للخادم
     async function sendFeedback(messageId, feedback, text) {
       try {
+        const userId = window.saadUser.getId();
         await fetch('/api/feedback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1900,7 +2012,7 @@
             messageId: messageId,
             feedback: feedback,
             text: text,
-            userId: 'guest'
+            user_id: userId
           })
         });
       } catch (error) {
@@ -1908,7 +2020,7 @@
       }
     }
     
-    // إرسال رسالة للخادم
+    // إرسال رسالة للخادم باستخدام النظام الجديد
     async function sendMessage() {
       const message = userInput.value.trim();
       if (!message) return;
@@ -1918,25 +2030,15 @@
       saveMessage(message, 'user', messageId);
       userInput.value = '';
       
-      const loadingId = showLoading();
-      
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            "رسالة": message,
-            "معرف_المستخدم": 'guest_user'
-          })
-        });
+        const data = await sendToSaad(message, 'text');
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (data.error && data.error === 'INVALID_USER_ID') {
+          addMessage('حدث خطأ في الجلسة. يرجى إعادة المحاولة.', 'bot', true);
+          saveMessage('حدث خطأ في الجلسة. يرجى إعادة المحاولة.', 'bot');
+          return;
         }
         
-        const data = await response.json();
         let botResponse = '';
         
         if (data.رد) {
@@ -1977,8 +2079,6 @@
         console.error('Error:', error);
         addMessage(`حدث خطأ: ${error.message}`, 'bot', true);
         saveMessage(`حدث خطأ: ${error.message}`, 'bot');
-      } finally {
-        removeLoading(loadingId);
       }
     }
     
