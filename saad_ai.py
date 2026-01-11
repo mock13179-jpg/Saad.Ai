@@ -4772,9 +4772,9 @@ if __name__ == "__main__":
     print("\n📢 تم تحويل النظام للعمل عبر OpenRouter API")
     print("📋 النموذج المستخدم: meta-llama/llama-3.1-405b-instruct:free")
     print("⚠️  تأكد من ضبط متغير البيئة OPENROUTER_API_KEY")
-    print("\n🌐 الخادم يعمل على: http://0.0.0.0:5000")
-    print("💡 استخدم /api/chat لإرسال الرسائل")
-    print("="*60 + "\n")
     
     saad_system = CosmicSaadUltimate()
-    app.run(host='0.0.0.0', port=5000)
+    
+    import os
+    port = int(os.environ.get("PORT", 5000))  # مهم جدًا لـ Vercel
+    app.run(host="0.0.0.0", port=port)
